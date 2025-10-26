@@ -45,7 +45,7 @@ export default function AppNavigator() {
 
     return (
         <Tab.Navigator
-            screenOptions={{
+            screenOptions={({ route }) => ({
                 headerShown: false,
                 tabBarShowLabel: true,
                 tabBarActiveTintColor: '#0277BD',
@@ -57,8 +57,10 @@ export default function AppNavigator() {
                     position: 'absolute',
                     backgroundColor: '#fff',
                     elevation: 5,
+                    // Hide tab bar only for Assistant screen
+                    display: route.name === 'Assistant' ? 'none' : 'flex',
                 },
-            }}
+            })}
         >
             <Tab.Screen
                 name="Home"
@@ -91,9 +93,6 @@ export default function AppNavigator() {
                                 <TouchableOpacity
                                     activeOpacity={0.9}
                                     style={styles.assistantButton}
-                                    onPress={() => {
-                                        // Later: open assistant modal
-                                    }}
                                 >
                                     <Ionicons name="sparkles" size={22} color="#fff" />
                                 </TouchableOpacity>
