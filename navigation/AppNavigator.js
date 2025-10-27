@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Animated, Easing } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -8,8 +9,19 @@ import BeachListScreen from '../screens/BeachListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import UtilitiesScreen from '../screens/UtilitiesScreen';
 import AssistantScreen from '../screens/AssistantScreen';
+import BeachDetailsScreen from '../screens/BeachDetailScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+function BeachStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="BeachList" component={BeachListScreen} />
+            <Stack.Screen name="BeachDetails" component={BeachDetailsScreen} />
+        </Stack.Navigator>
+    );
+}
 
 export default function AppNavigator() {
     const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -22,10 +34,13 @@ export default function AppNavigator() {
                 toValue: 1,
                 duration: 2000,
                 easing: Easing.out(Easing.ease),
-                useNativeDriver: false,
+                useNativeDriver: true, // Use native driver for better performance
             }).start(() => loopPulse());
         };
         loopPulse();
+
+        // Cleanup animation on unmount
+        return () => pulseAnim.stopAnimation();
     }, [pulseAnim]);
 
     const ringStyle = {
@@ -72,7 +87,7 @@ export default function AppNavigator() {
 
             <Tab.Screen
                 name="Beaches"
-                component={BeachListScreen}
+                component={BeachStack} // Use StackNavigator for beaches
                 options={{
                     tabBarIcon: ({ color, size }) => <Ionicons name="water" size={size} color={color} />,
                 }}
@@ -93,6 +108,7 @@ export default function AppNavigator() {
                                 <TouchableOpacity
                                     activeOpacity={0.9}
                                     style={styles.assistantButton}
+                                    onPress={() => { /* Add navigation logic if needed */ }}
                                 >
                                     <Ionicons name="sparkles" size={22} color="#fff" />
                                 </TouchableOpacity>
@@ -138,6 +154,8 @@ const styles = StyleSheet.create({
         height: 70,
         borderRadius: 35,
         backgroundColor: '#4FC3F7',
+        borderWidth: 1,
+        borderColor: '#00BFFF', // Slight outline for better visibility
     },
     assistantButton: {
         width: 55,
