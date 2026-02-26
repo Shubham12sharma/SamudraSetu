@@ -1,14 +1,14 @@
-import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './navigation/AppNavigator';
 import { Provider as PaperProvider } from 'react-native-paper';
+import { AuthProvider } from './context/AuthContext';
+import AppNavigator from './navigation/AppNavigator';
 
 export default function App() {
     return (
         <PaperProvider>
-            <NavigationContainer>
-                <AppNavigator />
-            </NavigationContainer>
+            <AuthProvider>
+                    <AppNavigator />
+            </AuthProvider>
         </PaperProvider>
     );
 }
+            <AppNavigator />

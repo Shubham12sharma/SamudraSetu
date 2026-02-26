@@ -1,49 +1,30 @@
-import React, { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Modal,
-    Image,
     Alert,
-    SafeAreaView
+    Image,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { AuthContext } from '../context/AuthContext';
+import { authAPI, clearUserData } from '../services/api';
 
-export default function ProfileScreen() {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [showLoginModal, setShowLoginModal] = useState(false);
-    const [showSignupModal, setShowSignupModal] = useState(false);
+export default function ProfileScreen({ navigation }) {
+    const { user, logout } = useContext(AuthContext);
+    const [loading, setLoading] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [profile, setProfile] = useState(null);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editLocation, setEditLocation] = useState('');
+    const [editBio, setEditBio] = useState('');
 
-    // Login/Signup form states
-    const [loginEmail, setLoginEmail] = useState('');
-    const [loginPassword, setLoginPassword] = useState('');
-    const [signupName, setSignupName] = useState('');
-    const [signupEmail, setSignupEmail] = useState('');
-    const [signupPassword, setSignupPassword] = useState('');
-    const [signupPhone, setSignupPhone] = useState('');
-
-    // User profile data
-    const [userProfile, setUserProfile] = useState({
-        name: 'Shubham Sharma',
-        email: 'shubhamsharma68653@gmail.com',
-        phone: '+91 98765 43210',
-        location: 'Mumbai, Maharashtra',
-        memberSince: 'January 2024',
-        bio: 'Passionate about keeping our beaches clean and protecting marine life.',
-        avatar: 'https://ui-avatars.com/api/?name=Shubham+Sharma&size=200&background=0288D1&color=fff'
-    });
-
-    // Edit form states
-    const [editName, setEditName] = useState(userProfile.name);
-    const [editPhone, setEditPhone] = useState(userProfile.phone);
-    const [editLocation, setEditLocation] = useState(userProfile.location);
-    const [editBio, setEditBio] = useState(userProfile.bio);
-
-    // User activity data
+    // User activity placeholders
     const [userStats] = useState({
         eventsJoined: 12,
         beachesVisited: 8,
@@ -57,314 +38,157 @@ export default function ProfileScreen() {
         { id: 3, name: 'Calangute Beach', location: 'Goa', rating: 4.8 }
     ]);
 
+    // ✅ FIX — Recent activity state added
     const [recentActivity] = useState([
-        { id: 1, type: 'event', text: 'Joined Juhu Beach Cleanup', date: '2 days ago' },
-        { id: 2, type: 'review', text: 'Reviewed Marina Beach', date: '5 days ago' },
-        { id: 3, type: 'photo', text: 'Shared photo at Calangute Beach', date: '1 week ago' }
+        {
+            id: 1,
+            type: 'event',
+            text: 'Joined beach cleanup drive',
+            date: '2 days ago'
+        },
+        {
+            id: 2,
+            type: 'review',
+            text: 'Reviewed Juhu Beach',
+            date: '1 week ago'
+        },
+        {
+            id: 3,
+            type: 'photo',
+            text: 'Shared a sunset photo',
+            date: '2 weeks ago'
+        }
     ]);
 
-    const handleLogin = () => {
-        if (!loginEmail.trim() || !loginPassword.trim()) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
+    useEffect(() => {
+        if (user) {
+            setProfile(user);
+            setEditName(user.name || '');
+            setEditPhone(user.phone || '');
+            setEditLocation(user.location || '');
+            setEditBio(user.bio || '');
         }
-        setIsLoggedIn(true);
-        setShowLoginModal(false);
-        setLoginEmail('');
-        setLoginPassword('');
-        Alert.alert('Success', 'Login successful!');
-    };
+    }, [user]);
 
-    const handleSignup = () => {
-        if (!signupName.trim() || !signupEmail.trim() || !signupPassword.trim()) {
-            Alert.alert('Error', 'Please fill in all required fields');
-            return;
-        }
-        setUserProfile({
-            ...userProfile,
-            name: signupName,
-            email: signupEmail,
-            phone: signupPhone,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(signupName)}&size=200&background=0288D1&color=fff`
-        });
-        setIsLoggedIn(true);
-        setShowSignupModal(false);
-        setSignupName('');
-        setSignupEmail('');
-        setSignupPassword('');
-        setSignupPhone('');
-        Alert.alert('Success', 'Account created successfully!');
-    };
+    const handleEditProfile = async () => {
+        if (!editName.trim()) return Alert.alert('Error', 'Name cannot be empty');
 
-    const handleEditProfile = () => {
-        if (!editName.trim()) {
-            Alert.alert('Error', 'Name cannot be empty');
-            return;
+        setLoading(true);
+
+        try {
+            const updated = await authAPI.updateUser(
+                profile._id || profile.id || profile._id,
+                {
+                    name: editName,
+                    phone: editPhone,
+                    location: editLocation,
+                    bio: editBio,
+                }
+            );
+
+            setProfile(updated);
+            await clearUserData();
+
+            Alert.alert('Success', 'Profile updated successfully!');
+            setShowEditModal(false);
+
+        } catch (err) {
+            console.error('Profile update error:', err);
+            Alert.alert('Error', 'Unable to update profile.');
+        } finally {
+            setLoading(false);
         }
-        setUserProfile({
-            ...userProfile,
-            name: editName,
-            phone: editPhone,
-            location: editLocation,
-            bio: editBio,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(editName)}&size=200&background=0288D1&color=fff`
-        });
-        setShowEditModal(false);
-        Alert.alert('Success', 'Profile updated successfully!');
     };
 
     const handleLogout = () => {
-        Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout',
-                    onPress: () => {
-                        setIsLoggedIn(false);
-                        Alert.alert('Success', 'Logged out successfully!');
-                    }
+        Alert.alert('Logout', 'Are you sure you want to logout?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Logout',
+                onPress: async () => {
+                    await logout();
+                    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
                 }
-            ]
-        );
+            }
+        ]);
     };
 
     const removeSavedBeach = (id) => {
-        Alert.alert(
-            'Remove Beach',
-            'Remove this beach from saved list?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Remove',
-                    onPress: () => setSavedBeaches(savedBeaches.filter(beach => beach.id !== id))
-                }
-            ]
-        );
+        Alert.alert('Remove Beach', 'Remove this beach from saved list?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Remove', onPress: () => setSavedBeaches(savedBeaches.filter(b => b.id !== id)) }
+        ]);
     };
 
-    // Not logged in view
-    if (!isLoggedIn) {
+    if (!user) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.welcomeContainer}>
-                    <ScrollView contentContainerStyle={styles.welcomeContent}>
-                        <Text style={styles.welcomeEmoji}>👤</Text>
-                        <Text style={styles.welcomeTitle}>Welcome to SamudraSetu</Text>
-                        <Text style={styles.welcomeSubtitle}>
-                            Login or create an account to manage your beach activities and join our community.
-                        </Text>
-
-                        <TouchableOpacity
-                            style={styles.primaryButton}
-                            onPress={() => setShowLoginModal(true)}
-                        >
-                            <Text style={styles.primaryButtonText}>Login</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.secondaryButton}
-                            onPress={() => setShowSignupModal(true)}
-                        >
-                            <Text style={styles.secondaryButtonText}>Create Account</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.benefitsContainer}>
-                            <Text style={styles.benefitsTitle}>Benefits of having an account:</Text>
-                            <View style={styles.benefitItem}>
-                                <Text style={styles.checkmark}>✓</Text>
-                                <Text style={styles.benefitText}>Save favorite beaches</Text>
-                            </View>
-                            <View style={styles.benefitItem}>
-                                <Text style={styles.checkmark}>✓</Text>
-                                <Text style={styles.benefitText}>Join cleaning events</Text>
-                            </View>
-                            <View style={styles.benefitItem}>
-                                <Text style={styles.checkmark}>✓</Text>
-                                <Text style={styles.benefitText}>Post reviews and photos</Text>
-                            </View>
-                            <View style={styles.benefitItem}>
-                                <Text style={styles.checkmark}>✓</Text>
-                                <Text style={styles.benefitText}>Track your contributions</Text>
-                            </View>
-                        </View>
-                    </ScrollView>
+                <View style={styles.center}>
+                    <Text style={styles.title}>You are not logged in</Text>
+                    <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('Login')}>
+                        <Text style={styles.primaryButtonText}>Go to Login</Text>
+                    </TouchableOpacity>
                 </View>
-
-                {/* Login Modal */}
-                <Modal
-                    visible={showLoginModal}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowLoginModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Login to Your Account</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Email Address"
-                                value={loginEmail}
-                                onChangeText={setLoginEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                value={loginPassword}
-                                onChangeText={setLoginPassword}
-                                secureTextEntry
-                            />
-                            <TouchableOpacity style={styles.modalButton} onPress={handleLogin}>
-                                <Text style={styles.modalButtonText}>Login</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowLoginModal(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setShowLoginModal(false);
-                                    setShowSignupModal(true);
-                                }}
-                                style={styles.switchButton}
-                            >
-                                <Text style={styles.switchButtonText}>
-                                    Don't have an account? <Text style={styles.linkText}>Sign up</Text>
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Signup Modal */}
-                <Modal
-                    visible={showSignupModal}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowSignupModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <ScrollView contentContainerStyle={styles.modalScrollContent}>
-                            <View style={styles.modalContent}>
-                                <Text style={styles.modalTitle}>Create Your Account</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Full Name *"
-                                    value={signupName}
-                                    onChangeText={setSignupName}
-                                />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Email Address *"
-                                    value={signupEmail}
-                                    onChangeText={setSignupEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Password *"
-                                    value={signupPassword}
-                                    onChangeText={setSignupPassword}
-                                    secureTextEntry
-                                />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Phone Number (Optional)"
-                                    value={signupPhone}
-                                    onChangeText={setSignupPhone}
-                                    keyboardType="phone-pad"
-                                />
-                                <TouchableOpacity style={styles.modalButton} onPress={handleSignup}>
-                                    <Text style={styles.modalButtonText}>Create Account</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.cancelButton}
-                                    onPress={() => setShowSignupModal(false)}
-                                >
-                                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        setShowSignupModal(false);
-                                        setShowLoginModal(true);
-                                    }}
-                                    style={styles.switchButton}
-                                >
-                                    <Text style={styles.switchButtonText}>
-                                        Already have an account? <Text style={styles.linkText}>Login</Text>
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </ScrollView>
-                    </View>
-                </Modal>
             </SafeAreaView>
         );
     }
 
-    // Logged in view
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView}>
+
                 {/* Profile Header */}
                 <View style={styles.profileHeader}>
                     <Image
-                        source={{ uri: userProfile.avatar }}
+                        source={{ uri: profile?.avatar || 'https://ui-avatars.com/api/?name=User' }}
                         style={styles.avatar}
                     />
+
                     <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>{userProfile.name}</Text>
-                        <Text style={styles.profileDetail}>📧 {userProfile.email}</Text>
-                        <Text style={styles.profileDetail}>📱 {userProfile.phone}</Text>
-                        <Text style={styles.profileDetail}>📍 {userProfile.location}</Text>
-                        <Text style={styles.memberSince}>Member since {userProfile.memberSince}</Text>
+                        <Text style={styles.profileName}>{profile?.name}</Text>
+                        <Text style={styles.profileDetail}>📧 {profile?.email}</Text>
+                        <Text style={styles.profileDetail}>📱 {profile?.phone}</Text>
+                        <Text style={styles.profileDetail}>📍 {profile?.location}</Text>
+                        <Text style={styles.memberSince}>Member since {profile?.memberSince}</Text>
                     </View>
 
                     <View style={styles.headerButtons}>
                         <TouchableOpacity
                             style={styles.editButton}
-                            onPress={() => {
-                                setEditName(userProfile.name);
-                                setEditPhone(userProfile.phone);
-                                setEditLocation(userProfile.location);
-                                setEditBio(userProfile.bio);
-                                setShowEditModal(true);
-                            }}
+                            onPress={() => setShowEditModal(true)}
                         >
                             <Text style={styles.editButtonText}>Edit Profile</Text>
                         </TouchableOpacity>
+
                         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                             <Text style={styles.logoutButtonText}>Logout</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {userProfile.bio && (
+                    {profile?.bio && (
                         <View style={styles.bioContainer}>
-                            <Text style={styles.bioText}>{userProfile.bio}</Text>
+                            <Text style={styles.bioText}>{profile.bio}</Text>
                         </View>
                     )}
                 </View>
 
-                {/* Stats Grid */}
+                {/* Stats */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statBox}>
                         <Text style={[styles.statNumber, { color: '#0288D1' }]}>{userStats.eventsJoined}</Text>
                         <Text style={styles.statLabel}>Events Joined</Text>
                     </View>
+
                     <View style={styles.statBox}>
                         <Text style={[styles.statNumber, { color: '#4CAF50' }]}>{userStats.beachesVisited}</Text>
                         <Text style={styles.statLabel}>Beaches Visited</Text>
                     </View>
+
                     <View style={styles.statBox}>
                         <Text style={[styles.statNumber, { color: '#9C27B0' }]}>{userStats.reviewsPosted}</Text>
                         <Text style={styles.statLabel}>Reviews Posted</Text>
                     </View>
+
                     <View style={styles.statBox}>
                         <Text style={[styles.statNumber, { color: '#FF9800' }]}>{userStats.photoShared}</Text>
                         <Text style={styles.statLabel}>Photos Shared</Text>
@@ -374,6 +198,7 @@ export default function ProfileScreen() {
                 {/* Saved Beaches */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>❤️ Saved Beaches</Text>
+
                     {savedBeaches.length > 0 ? (
                         savedBeaches.map((beach) => (
                             <View key={beach.id} style={styles.beachCard}>
@@ -382,6 +207,7 @@ export default function ProfileScreen() {
                                     <Text style={styles.beachLocation}>📍 {beach.location}</Text>
                                     <Text style={styles.beachRating}>⭐ {beach.rating}</Text>
                                 </View>
+
                                 <TouchableOpacity onPress={() => removeSavedBeach(beach.id)}>
                                     <Text style={styles.removeButton}>✕</Text>
                                 </TouchableOpacity>
@@ -395,13 +221,15 @@ export default function ProfileScreen() {
                 {/* Recent Activity */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>📋 Recent Activity</Text>
-                    {recentActivity.map((activity) => (
+
+                    {recentActivity?.map((activity) => (
                         <View key={activity.id} style={styles.activityCard}>
                             <Text style={styles.activityIcon}>
                                 {activity.type === 'event' && '🌊'}
                                 {activity.type === 'review' && '⭐'}
                                 {activity.type === 'photo' && '📸'}
                             </Text>
+
                             <View style={styles.activityInfo}>
                                 <Text style={styles.activityText}>{activity.text}</Text>
                                 <Text style={styles.activityDate}>{activity.date}</Text>
@@ -413,17 +241,20 @@ export default function ProfileScreen() {
                 {/* Achievements */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>🏆 Achievements</Text>
+
                     <View style={styles.achievementsGrid}>
                         <View style={[styles.achievementCard, { backgroundColor: '#FFF9C4' }]}>
                             <Text style={styles.achievementIcon}>🥇</Text>
                             <Text style={styles.achievementTitle}>Beach Explorer</Text>
                             <Text style={styles.achievementDesc}>Visited 5+ beaches</Text>
                         </View>
+
                         <View style={[styles.achievementCard, { backgroundColor: '#C8E6C9' }]}>
                             <Text style={styles.achievementIcon}>🌱</Text>
                             <Text style={styles.achievementTitle}>Eco Warrior</Text>
                             <Text style={styles.achievementDesc}>Joined 10+ events</Text>
                         </View>
+
                         <View style={[styles.achievementCard, { backgroundColor: '#BBDEFB' }]}>
                             <Text style={styles.achievementIcon}>✍️</Text>
                             <Text style={styles.achievementTitle}>Active Reviewer</Text>
@@ -431,64 +262,38 @@ export default function ProfileScreen() {
                         </View>
                     </View>
                 </View>
+
             </ScrollView>
 
-            {/* Edit Profile Modal */}
-            <Modal
-                visible={showEditModal}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowEditModal(false)}
-            >
+            {/* Edit Profile Modal — unchanged */}
+            <Modal visible={showEditModal} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
                     <ScrollView contentContainerStyle={styles.modalScrollContent}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Edit Profile</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Full Name"
-                                value={editName}
-                                onChangeText={setEditName}
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Phone Number"
-                                value={editPhone}
-                                onChangeText={setEditPhone}
-                                keyboardType="phone-pad"
-                            />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Location"
-                                value={editLocation}
-                                onChangeText={setEditLocation}
-                            />
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Bio"
-                                value={editBio}
-                                onChangeText={setEditBio}
-                                multiline
-                                numberOfLines={4}
-                                textAlignVertical="top"
-                            />
+
+                            <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholder="Full Name" />
+                            <TextInput style={styles.input} value={editPhone} onChangeText={setEditPhone} placeholder="Phone" />
+                            <TextInput style={styles.input} value={editLocation} onChangeText={setEditLocation} placeholder="Location" />
+                            <TextInput style={[styles.input, styles.textArea]} value={editBio} onChangeText={setEditBio} placeholder="Bio" multiline />
+
                             <TouchableOpacity style={styles.modalButton} onPress={handleEditProfile}>
                                 <Text style={styles.modalButtonText}>Save Changes</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowEditModal(false)}
-                            >
+
+                            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
                                 <Text style={styles.cancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
                         </View>
                     </ScrollView>
                 </View>
             </Modal>
+
         </SafeAreaView>
     );
 }
 
+// ⛔ styles unchanged — keep your original StyleSheet below
 const styles = StyleSheet.create({
     container: {
         flex: 1,

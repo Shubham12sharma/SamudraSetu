@@ -1,15 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Animated, Easing } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AuthContext } from '../context/AuthContext';
 
-import HomeScreen from '../screens/HomeScreen';
-import BeachListScreen from '../screens/BeachListScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import UtilitiesScreen from '../screens/UtilitiesScreen';
 import AssistantScreen from '../screens/AssistantScreen';
 import BeachDetailsScreen from '../screens/BeachDetailScreen';
+import BeachListScreen from '../screens/BeachListScreen';
+import HomeScreen from '../screens/HomeScreen';
+import LoginScreen from '../screens/LoginScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import UtilitiesScreen from '../screens/UtilitiesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -23,10 +25,9 @@ function BeachStack() {
     );
 }
 
-export default function AppNavigator() {
+function MainTabs() {
     const pulseAnim = useRef(new Animated.Value(0)).current;
 
-    // Continuous pulsing ring animation
     useEffect(() => {
         const loopPulse = () => {
             pulseAnim.setValue(0);
@@ -34,12 +35,10 @@ export default function AppNavigator() {
                 toValue: 1,
                 duration: 2000,
                 easing: Easing.out(Easing.ease),
-                useNativeDriver: true, // Use native driver for better performance
+                useNativeDriver: true,
             }).start(() => loopPulse());
         };
         loopPulse();
-
-        // Cleanup animation on unmount
         return () => pulseAnim.stopAnimation();
     }, [pulseAnim]);
 
@@ -72,7 +71,6 @@ export default function AppNavigator() {
                     position: 'absolute',
                     backgroundColor: '#fff',
                     elevation: 5,
-                    // Hide tab bar only for Assistant screen
                     display: route.name === 'Assistant' ? 'none' : 'flex',
                 },
             })}
@@ -87,13 +85,12 @@ export default function AppNavigator() {
 
             <Tab.Screen
                 name="Beaches"
-                component={BeachStack} // Use StackNavigator for beaches
+                component={BeachStack}
                 options={{
                     tabBarIcon: ({ color, size }) => <Ionicons name="water" size={size} color={color} />,
                 }}
             />
 
-            {/* 🔹 Floating Assistant Button with Pulse Ring 🔹 */}
             <Tab.Screen
                 name="Assistant"
                 component={AssistantScreen}
@@ -102,13 +99,10 @@ export default function AppNavigator() {
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.assistantButtonContainer}>
                             <View style={styles.outerWrapper}>
-                                {/* Animated ring */}
                                 <Animated.View style={[styles.ring, ringStyle]} />
-                                {/* Center glowing button */}
                                 <TouchableOpacity
                                     activeOpacity={0.9}
                                     style={styles.assistantButton}
-                                    onPress={() => { /* Add navigation logic if needed */ }}
                                 >
                                     <Ionicons name="sparkles" size={22} color="#fff" />
                                 </TouchableOpacity>
@@ -138,6 +132,35 @@ export default function AppNavigator() {
     );
 }
 
+export default function AppNavigator() {
+    const { user, loading: authLoading } = useContext(AuthContext);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Wait briefly so initial provider load completes
+        setLoading(authLoading);
+    }, [authLoading]);
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0288D1" />
+                <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+        );
+    }
+
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {!user ? (
+                <Stack.Screen name="Login" component={LoginScreen} />
+            ) : (
+                <Stack.Screen name="MainTabs" component={MainTabs} />
+            )}
+        </Stack.Navigator>
+    );
+}
+
 const styles = StyleSheet.create({
     assistantButtonContainer: {
         alignItems: 'center',
@@ -155,7 +178,7 @@ const styles = StyleSheet.create({
         borderRadius: 35,
         backgroundColor: '#4FC3F7',
         borderWidth: 1,
-        borderColor: '#00BFFF', // Slight outline for better visibility
+        borderColor: '#00BFFF',
     },
     assistantButton: {
         width: 55,
@@ -174,5 +197,16 @@ const styles = StyleSheet.create({
         color: '#0277BD',
         marginTop: 4,
         fontWeight: '600',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#E3F2FD',
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#0277BD',
+        fontSize: 16,
     },
 });

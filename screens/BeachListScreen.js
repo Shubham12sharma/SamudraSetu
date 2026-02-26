@@ -1,362 +1,230 @@
-// BeachList.js
-import React, { useState, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
+    ActivityIndicator,
+    Alert,
     FlatList,
-    TouchableOpacity,
+    RefreshControl,
+    StyleSheet,
+    Text,
     TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-
-// Sample data - Indian beaches
-const BEACHES_DATA = [
-    {
-        id: 1,
-        name: 'Goa Beach',
-        state: 'Goa',
-        image: '🏖️',
-        description: 'Popular tourist destination with water sports',
-        rating: 4.5,
-        reviews: 2345,
-        distance: '450 km from Bangalore',
-        bestTime: 'October to March',
-        facilities: ['Restrooms', 'Food Stalls', 'Parking', 'Lifeguards'],
-        activities: ['Swimming', 'Surfing', 'Parasailing', 'Beach Volleyball'],
-        sustainability: {
-            waterQuality: 'Good',
-            weatherCondition: 'Sunny, 28°C',
-            pollutionLevel: 'Moderate',
-            plasticWaste: 'Being Managed',
-            coralStatus: 'Protected',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Taj Holiday Village', distance: '2 km', rating: 4.7 },
-                { name: 'Goa Marriott Resort', distance: '3.5 km', rating: 4.6 },
-                { name: 'Leela Goa', distance: '4 km', rating: 4.8 },
-            ],
-            railways: [
-                { station: 'Madgaon Railway Station', distance: '45 km' },
-                { station: 'Vasco Da Gama Station', distance: '35 km' },
-            ],
-            airports: [
-                { airport: 'Dabolim Airport', distance: '35 km', code: 'GOI' },
-            ],
-            transport: [
-                { type: 'Taxi/Uber', availability: 'Available 24/7' },
-                { type: 'Local Buses', availability: 'Frequent' },
-                { type: 'Auto-rickshaw', availability: 'Available' },
-                { type: 'Bike Rental', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Manipal Hospital', distance: '3 km' },
-                { name: 'Apollo Hospitals', distance: '5 km' },
-            ],
-            restaurants: [
-                { name: 'Fiesta Restaurant', cuisine: 'Multi-cuisine', rating: 4.4 },
-                { name: 'Beach Shack', cuisine: 'Seafood', rating: 4.3 },
-            ],
-        },
-    },
-    {
-        id: 2,
-        name: 'Mararikulam Beach',
-        state: 'Kerala',
-        image: '🏝️',
-        description: 'Serene backwater beach with houseboat rides',
-        rating: 4.7,
-        reviews: 1890,
-        distance: '60 km from Kochi',
-        bestTime: 'May to September',
-        facilities: ['Restrooms', 'Cafes', 'Boat Services', 'Hotels'],
-        activities: ['Boating', 'Fishing', 'Cycling', 'Photography'],
-        sustainability: {
-            waterQuality: 'Excellent',
-            weatherCondition: 'Humid, 26°C',
-            pollutionLevel: 'Low',
-            plasticWaste: 'Minimal',
-            coralStatus: 'Pristine',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Marari Beach Resort', distance: '0.5 km', rating: 4.8 },
-                { name: 'Coconut Lagoon', distance: '2 km', rating: 4.7 },
-                { name: 'Kumarakom Lake Resort', distance: '4 km', rating: 4.6 },
-            ],
-            railways: [
-                { station: 'Ernakulathapan Station', distance: '55 km' },
-                { station: 'Alleppey Station', distance: '35 km' },
-            ],
-            airports: [
-                { airport: 'Kochi International Airport', distance: '65 km', code: 'COK' },
-            ],
-            transport: [
-                { type: 'Houseboat Tours', availability: 'Daily' },
-                { type: 'Taxi Service', availability: 'Available 24/7' },
-                { type: 'Local Buses', availability: 'Frequent' },
-                { type: 'Bicycle Rental', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Marari Medical Center', distance: '1 km' },
-                { name: 'VPS Lakeshore Hospital', distance: '5 km' },
-            ],
-            restaurants: [
-                { name: 'Marari Kitchen', cuisine: 'Kerala', rating: 4.5 },
-                { name: 'Lagoon Restaurant', cuisine: 'Seafood', rating: 4.6 },
-            ],
-        },
-    },
-    {
-        id: 3,
-        name: 'Marina Beach',
-        state: 'Tamil Nadu',
-        image: '🌊',
-        description: 'Longest beach in India with vibrant atmosphere',
-        rating: 4.2,
-        reviews: 3120,
-        distance: '5 km from Chennai City',
-        bestTime: 'November to February',
-        facilities: ['Restrooms', 'Food Courts', 'Parking', 'Medical Aid'],
-        activities: ['Walking', 'Photography', 'Water Sports', 'Shopping'],
-        sustainability: {
-            waterQuality: 'Fair',
-            weatherCondition: 'Warm, 30°C',
-            pollutionLevel: 'Moderate to High',
-            plasticWaste: 'Regular Cleanup',
-            coralStatus: 'Recovering',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Chennai Marriott Hotel', distance: '1.5 km', rating: 4.5 },
-                { name: 'ITC Grand Chola', distance: '2 km', rating: 4.7 },
-                { name: 'Park Sheraton', distance: '1 km', rating: 4.4 },
-            ],
-            railways: [
-                { station: 'Central Station', distance: '3 km' },
-                { station: 'Beach Station', distance: '0.5 km' },
-            ],
-            airports: [
-                { airport: 'Chennai International Airport', distance: '15 km', code: 'MAA' },
-            ],
-            transport: [
-                { type: 'Metro', availability: 'Nearby' },
-                { type: 'Buses', availability: 'Frequent' },
-                { type: 'Taxi/Uber', availability: '24/7' },
-                { type: 'Auto-rickshaw', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Apollo Hospitals', distance: '2 km' },
-                { name: 'Fortis Malar Hospital', distance: '1.5 km' },
-            ],
-            restaurants: [
-                { name: 'Marina Cafe', cuisine: 'Continental', rating: 4.2 },
-                { name: 'Sea Shell Restaurant', cuisine: 'Seafood', rating: 4.3 },
-            ],
-        },
-    },
-    {
-        id: 4,
-        name: 'Radhanagar Beach',
-        state: 'Andaman',
-        image: '⛱️',
-        description: 'Pristine white sand beach with crystal clear waters',
-        rating: 4.9,
-        reviews: 2567,
-        distance: '45 km from Port Blair',
-        bestTime: 'October to May',
-        facilities: ['Restrooms', 'Water Sports', 'Restaurants', 'Resorts'],
-        activities: ['Swimming', 'Snorkeling', 'Diving', 'Sunset Watching'],
-        sustainability: {
-            waterQuality: 'Pristine',
-            weatherCondition: 'Tropical, 28°C',
-            pollutionLevel: 'Very Low',
-            plasticWaste: 'Strict Control',
-            coralStatus: 'Protected & Thriving',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Havelock Island Resort', distance: '1 km', rating: 4.9 },
-                { name: 'Wild Orchid', distance: '2 km', rating: 4.8 },
-                { name: 'Taj Exotica', distance: '3 km', rating: 4.9 },
-            ],
-            railways: [
-                { station: 'Port Blair Dock', distance: '50 km', note: 'Ferry service' },
-            ],
-            airports: [
-                { airport: 'Port Blair Airport', distance: '40 km', code: 'IXZ' },
-            ],
-            transport: [
-                { type: 'Ferry Boats', availability: 'Regular' },
-                { type: 'Taxi Service', availability: 'Available' },
-                { type: 'Boat Rentals', availability: 'Available' },
-                { type: 'Scooter Rental', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Havelock Primary Health Center', distance: '2 km' },
-                { name: 'Port Blair Hospital', distance: '45 km' },
-            ],
-            restaurants: [
-                { name: 'Ananya Restaurant', cuisine: 'Multi-cuisine', rating: 4.7 },
-                { name: 'Full Moon Cafe', cuisine: 'Seafood', rating: 4.6 },
-            ],
-        },
-    },
-    {
-        id: 5,
-        name: 'Ashvem Beach',
-        state: 'Goa',
-        image: '🏖️',
-        description: 'Quiet northern beach perfect for relaxation',
-        rating: 4.4,
-        reviews: 1234,
-        distance: '75 km from Panaji',
-        bestTime: 'October to March',
-        facilities: ['Restrooms', 'Beach Shacks', 'Yoga Studios', 'Parking'],
-        activities: ['Yoga', 'Meditation', 'Sunbathing', 'Horseback Riding'],
-        sustainability: {
-            waterQuality: 'Good',
-            weatherCondition: 'Pleasant, 27°C',
-            pollutionLevel: 'Low',
-            plasticWaste: 'Managed',
-            coralStatus: 'Protected',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Ashvem Beach Resort', distance: '0.2 km', rating: 4.6 },
-                { name: 'Yoga Retreat Center', distance: '1 km', rating: 4.5 },
-                { name: 'Beach Paradise Hotel', distance: '2 km', rating: 4.3 },
-            ],
-            railways: [
-                { station: 'Pernem Railway Station', distance: '25 km' },
-                { station: 'Madgaon Station', distance: '90 km' },
-            ],
-            airports: [
-                { airport: 'Dabolim Airport', distance: '75 km', code: 'GOI' },
-            ],
-            transport: [
-                { type: 'Taxi/Uber', availability: 'Available' },
-                { type: 'Local Buses', availability: 'Frequent' },
-                { type: 'Motorcycle Rental', availability: 'Available' },
-                { type: 'Horse Rides', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Ashvem Health Center', distance: '1.5 km' },
-                { name: 'Mapusa Hospital', distance: '20 km' },
-            ],
-            restaurants: [
-                { name: 'Yoga Cafe', cuisine: 'Health Food', rating: 4.4 },
-                { name: 'Ashvem Kitchen', cuisine: 'International', rating: 4.3 },
-            ],
-        },
-    },
-    {
-        id: 6,
-        name: 'Varkala Beach',
-        state: 'Kerala',
-        image: '🏝️',
-        description: 'Scenic cliffside beach with ayurvedic treatments',
-        rating: 4.6,
-        reviews: 2001,
-        distance: '50 km from Thiruvananthapuram',
-        bestTime: 'October to May',
-        facilities: ['Restrooms', 'Ayurveda Centers', 'Cafes', 'Hotels'],
-        activities: ['Paragliding', 'Rock Climbing', 'Swimming', 'Wellness'],
-        sustainability: {
-            waterQuality: 'Excellent',
-            weatherCondition: 'Tropical, 26°C',
-            pollutionLevel: 'Low',
-            plasticWaste: 'Minimal',
-            coralStatus: 'Protected',
-        },
-        nearbyUtilities: {
-            hotels: [
-                { name: 'Varkala Beach Resort', distance: '0.5 km', rating: 4.7 },
-                { name: 'Clafouti Ayurveda Resort', distance: '1 km', rating: 4.6 },
-                { name: 'Hilltop Beach Hotel', distance: '2 km', rating: 4.5 },
-            ],
-            railways: [
-                { station: 'Varkala Sivagiri Station', distance: '3 km' },
-                { station: 'Thiruvananthapuram Central', distance: '50 km' },
-            ],
-            airports: [
-                { airport: 'Thiruvananthapuram International', distance: '55 km', code: 'TRV' },
-            ],
-            transport: [
-                { type: 'Local Buses', availability: 'Frequent' },
-                { type: 'Taxi Service', availability: '24/7' },
-                { type: 'Bike Rental', availability: 'Available' },
-                { type: 'Paragliding Service', availability: 'Available' },
-            ],
-            hospitals: [
-                { name: 'Varkala Ayurveda Hospital', distance: '1 km' },
-                { name: 'Government Medical College', distance: '50 km' },
-            ],
-            restaurants: [
-                { name: 'Cliff Restaurant', cuisine: 'Kerala', rating: 4.5 },
-                { name: 'Ayurvedic Kitchen', cuisine: 'Health Food', rating: 4.6 },
-            ],
-        },
-    },
-];
+import { beachesAPI } from '../services/api';
 
 export default function BeachListScreen({ navigation }) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [beaches, setBeaches] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [filterState, setFilterState] = useState('');
+
+    useEffect(() => {
+        loadBeaches();
+    }, []);
+
+    const loadBeaches = async () => {
+        try {
+            setLoading(true);
+            const params = {};
+            if (filterState) params.state = filterState;
+            const data = await beachesAPI.getAll(params);
+            setBeaches(Array.isArray(data) ? data : data.results || []);
+        } catch (error) {
+            console.error('Error loading beaches:', error);
+            Alert.alert('Error', 'Failed to load beaches. Please try again.');
+            // Fallback to empty array
+            setBeaches([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadBeaches();
+        setRefreshing(false);
+    };
 
     const filteredBeaches = useMemo(() => {
-        return BEACHES_DATA.filter(beach =>
-            beach.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            beach.state.toLowerCase().includes(searchQuery.toLowerCase())
+        if (!searchQuery.trim()) return beaches;
+        const query = searchQuery.toLowerCase();
+        return beaches.filter(beach =>
+            beach.name?.toLowerCase().includes(query) ||
+            beach.state?.toLowerCase().includes(query) ||
+            beach.description?.toLowerCase().includes(query)
         );
-    }, [searchQuery]);
+    }, [beaches, searchQuery]);
 
-    const renderBeachItem = ({ item }) => (
-        <TouchableOpacity
-            style={styles.beachCard}
-            onPress={() => navigation.navigate('BeachDetails', { beach: item })}
-            activeOpacity={0.7}
-        >
-            <View style={styles.cardHeader}>
-                <Text style={styles.cardImage}>{item.image}</Text>
-                <View style={styles.cardContent}>
-                    <Text style={styles.beachName}>{item.name}</Text>
-                    <Text style={styles.beachState}>{item.state}</Text>
-                    <Text style={styles.cardDistance}>{item.distance}</Text>
+    const getSuitabilityColor = (score) => {
+        if (score >= 80) return '#4CAF50';
+        if (score >= 60) return '#FF9800';
+        return '#F44336';
+    };
+
+    const getSuitabilityLabel = (score) => {
+        if (score >= 80) return 'Excellent';
+        if (score >= 60) return 'Good';
+        return 'Fair';
+    };
+
+    const renderBeachItem = ({ item }) => {
+        const suitabilityScore = item.suitability_score || 0;
+        const suitabilityColor = getSuitabilityColor(suitabilityScore);
+        const suitabilityLabel = getSuitabilityLabel(suitabilityScore);
+
+        return (
+            <TouchableOpacity
+                style={styles.beachCard}
+                onPress={() => navigation.navigate('BeachDetails', { beach: item })}
+                activeOpacity={0.7}
+            >
+                <View style={styles.cardHeader}>
+                    <View style={styles.cardImageContainer}>
+                        <Text style={styles.cardImage}>🏖️</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <View style={styles.cardTitleRow}>
+                            <Text style={styles.beachName}>{item.name || 'Unknown Beach'}</Text>
+                            <View style={[styles.suitabilityBadge, { backgroundColor: suitabilityColor + '20' }]}>
+                                <Text style={[styles.suitabilityText, { color: suitabilityColor }]}>
+                                    {suitabilityLabel}
+                                </Text>
+                            </View>
+                        </View>
+                        <Text style={styles.beachState}>
+                            <Ionicons name="location" size={12} color="#666" /> {item.state || 'India'}
+                        </Text>
+                        {item.description && (
+                            <Text style={styles.beachDescription} numberOfLines={2}>
+                                {item.description}
+                            </Text>
+                        )}
+                    </View>
                 </View>
-                <View style={styles.ratingBox}>
-                    <Text style={styles.rating}>⭐ {item.rating}</Text>
-                    <Text style={styles.reviews}>({item.reviews})</Text>
+
+                <View style={styles.cardFooter}>
+                    <View style={styles.scoreContainer}>
+                        <Text style={styles.scoreLabel}>Suitability</Text>
+                        <Text style={[styles.scoreValue, { color: suitabilityColor }]}>
+                            {suitabilityScore.toFixed(0)}%
+                        </Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                        {item.crowd_level && (
+                            <View style={styles.metaItem}>
+                                <Ionicons 
+                                    name="people" 
+                                    size={14} 
+                                    color={item.crowd_level === 'low' ? '#4CAF50' : item.crowd_level === 'moderate' ? '#FF9800' : '#F44336'} 
+                                />
+                                <Text style={styles.metaText}>
+                                    {item.crowd_level.charAt(0).toUpperCase() + item.crowd_level.slice(1)}
+                                </Text>
+                            </View>
+                        )}
+                        {item.cleanliness_score !== undefined && (
+                            <View style={styles.metaItem}>
+                                <Ionicons name="star" size={14} color="#FFD700" />
+                                <Text style={styles.metaText}>
+                                    Clean: {item.cleanliness_score.toFixed(0)}%
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                    <TouchableOpacity style={styles.viewButton}>
+                        <Text style={styles.viewButtonText}>View Details →</Text>
+                    </TouchableOpacity>
                 </View>
+            </TouchableOpacity>
+        );
+    };
+
+    if (loading && beaches.length === 0) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0288D1" />
+                <Text style={styles.loadingText}>Loading beaches...</Text>
             </View>
-            <Text style={styles.beachDescription}>{item.description}</Text>
-        </TouchableOpacity>
-    );
+        );
+    }
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>🏝️ Beaches List</Text>
-                <Text style={styles.subtitle}>Explore beaches by state or activity.</Text>
+                <Text style={styles.title}>🏝️ Explore Beaches</Text>
+                <Text style={styles.subtitle}>Discover the best beaches across India</Text>
             </View>
 
-            <TextInput
-                style={styles.searchBar}
-                placeholder="Search beaches or state..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor="#999"
-            />
+            <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+                <TextInput
+                    style={styles.searchBar}
+                    placeholder="Search beaches, states..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholderTextColor="#999"
+                />
+                {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Ionicons name="close-circle" size={20} color="#999" />
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            <View style={styles.filterContainer}>
+                <Text style={styles.filterLabel}>Filter by State:</Text>
+                <View style={styles.filterButtons}>
+                    <TouchableOpacity
+                        style={[styles.filterButton, !filterState && styles.filterButtonActive]}
+                        onPress={() => {
+                            setFilterState('');
+                            loadBeaches();
+                        }}
+                    >
+                        <Text style={[styles.filterButtonText, !filterState && styles.filterButtonTextActive]}>
+                            All
+                        </Text>
+                    </TouchableOpacity>
+                    {['Goa', 'Kerala', 'Tamil Nadu', 'Andaman'].map((state) => (
+                        <TouchableOpacity
+                            key={state}
+                            style={[styles.filterButton, filterState === state && styles.filterButtonActive]}
+                            onPress={() => {
+                                setFilterState(state);
+                                loadBeaches();
+                            }}
+                        >
+                            <Text style={[styles.filterButtonText, filterState === state && styles.filterButtonTextActive]}>
+                                {state}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
 
             <Text style={styles.resultCount}>
-                {filteredBeaches.length} beaches found
+                {filteredBeaches.length} {filteredBeaches.length === 1 ? 'beach' : 'beaches'} found
             </Text>
 
             <FlatList
                 data={filteredBeaches}
                 renderItem={renderBeachItem}
-                keyExtractor={item => item.id.toString()}
+                keyExtractor={(item) => item._id?.toString() || item.id?.toString() || Math.random().toString()}
                 contentContainerStyle={styles.listContent}
-                scrollEnabled={true}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0288D1" />
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.emptyEmoji}>🏖️</Text>
+                        <Text style={styles.emptyText}>No beaches found</Text>
+                        <Text style={styles.emptySubtext}>
+                            {searchQuery ? 'Try a different search term' : 'Pull down to refresh'}
+                        </Text>
+                    </View>
+                }
             />
         </View>
     );
@@ -365,99 +233,227 @@ export default function BeachListScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#F5F7FA',
         paddingTop: 40,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#F5F7FA',
+    },
+    loadingText: {
+        marginTop: 10,
+        color: '#666',
+        fontSize: 16,
+    },
     header: {
-        paddingHorizontal: 15,
+        paddingHorizontal: 20,
         paddingBottom: 15,
+        backgroundColor: '#FFFFFF',
+        paddingTop: 10,
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#2c5aa0',
+        color: '#01579B',
         marginBottom: 5,
     },
     subtitle: {
         fontSize: 14,
         color: '#666',
-        marginBottom: 10,
     },
-    searchBar: {
-        marginHorizontal: 15,
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        marginHorizontal: 20,
+        marginTop: 15,
         marginBottom: 10,
         paddingHorizontal: 15,
-        paddingVertical: 12,
-        backgroundColor: '#fff',
         borderRadius: 25,
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: '#E0E0E0',
+        height: 50,
+    },
+    searchIcon: {
+        marginRight: 10,
+    },
+    searchBar: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333',
+    },
+    filterContainer: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        marginBottom: 10,
+    },
+    filterLabel: {
         fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 10,
+    },
+    filterButtons: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    filterButton: {
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F5F5F5',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    filterButtonActive: {
+        backgroundColor: '#0288D1',
+        borderColor: '#0288D1',
+    },
+    filterButtonText: {
+        fontSize: 13,
+        color: '#666',
+        fontWeight: '500',
+    },
+    filterButtonTextActive: {
+        color: '#FFFFFF',
     },
     resultCount: {
-        marginHorizontal: 15,
+        marginHorizontal: 20,
         fontSize: 12,
         color: '#999',
         marginBottom: 10,
         fontWeight: '500',
     },
     listContent: {
-        paddingHorizontal: 15,
-        paddingBottom: 20,
+        paddingHorizontal: 20,
+        paddingBottom: 100,
     },
     beachCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 15,
-        marginBottom: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
         elevation: 3,
         shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 3,
+        shadowRadius: 4,
     },
     cardHeader: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 10,
+        marginBottom: 12,
+    },
+    cardImageContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 12,
+        backgroundColor: '#E3F2FD',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
     },
     cardImage: {
-        fontSize: 40,
-        marginRight: 12,
+        fontSize: 30,
     },
     cardContent: {
         flex: 1,
     },
+    cardTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 5,
+    },
     beachName: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
-        color: '#2c5aa0',
+        color: '#01579B',
+        flex: 1,
+    },
+    suitabilityBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginLeft: 8,
+    },
+    suitabilityText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
     beachState: {
-        fontSize: 12,
+        fontSize: 13,
         color: '#666',
-        marginTop: 2,
-    },
-    cardDistance: {
-        fontSize: 11,
-        color: '#999',
-        marginTop: 3,
-    },
-    ratingBox: {
-        alignItems: 'flex-end',
-    },
-    rating: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#ff9800',
-    },
-    reviews: {
-        fontSize: 11,
-        color: '#999',
-        marginTop: 2,
+        marginBottom: 6,
     },
     beachDescription: {
         fontSize: 13,
-        color: '#555',
-        lineHeight: 19,
+        color: '#888',
+        lineHeight: 18,
+    },
+    cardFooter: {
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        paddingTop: 12,
+        marginTop: 8,
+    },
+    scoreContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    scoreLabel: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: '500',
+    },
+    scoreValue: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    metaRow: {
+        flexDirection: 'row',
+        gap: 15,
+        marginBottom: 12,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    metaText: {
+        fontSize: 12,
+        color: '#666',
+    },
+    viewButton: {
+        alignSelf: 'flex-end',
+    },
+    viewButtonText: {
+        color: '#0288D1',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+    },
+    emptyEmoji: {
+        fontSize: 64,
+        marginBottom: 16,
+    },
+    emptyText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 8,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#999',
     },
 });

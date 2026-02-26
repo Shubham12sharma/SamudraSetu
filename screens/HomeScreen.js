@@ -1,229 +1,275 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { beachesAPI, getUserData } from '../services/api';
 
-export default function HomeScreen() {
-    const [showJoinModal, setShowJoinModal] = useState(false);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [userName, setUserName] = useState('');
-    const [userEmail, setUserEmail] = useState('');
-    const [eventName, setEventName] = useState('');
-    const [eventLocation, setEventLocation] = useState('');
-    const [eventDate, setEventDate] = useState('');
-    const [communities, setCommunities] = useState([
-        { id: 1, name: 'Juhu Beach Guardians', location: 'Juhu Beach, Mumbai', members: 234, nextEvent: '2025-11-02' },
-        { id: 2, name: 'Marina Eco Warriors', location: 'Marina Beach, Chennai', members: 189, nextEvent: '2025-11-05' },
-        { id: 3, name: 'Goa Clean Coast', location: 'Baga Beach, Goa', members: 456, nextEvent: '2025-11-01' },
-    ]);
+export default function HomeScreen({ navigation }) {
+    const [beaches, setBeaches] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [user, setUser] = useState(null);
 
-    const handleJoinCommunity = () => {
-        if (!userName.trim() || !userEmail.trim()) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const userData = await getUserData();
+            setUser(userData);
+            
+            // Load featured beaches (top suitability scores)
+            const beachesData = await beachesAPI.getAll();
+            const beachesArray = Array.isArray(beachesData) ? beachesData : beachesData.results || [];
+            
+            // Sort by suitability score and take top 3
+            const featuredBeaches = beachesArray
+                .sort((a, b) => (b.suitability_score || 0) - (a.suitability_score || 0))
+                .slice(0, 3);
+            
+            setBeaches(featuredBeaches);
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            setLoading(false);
         }
-        Alert.alert('Success', `Welcome ${userName}! You've joined the beach cleaning community.`);
-        setShowJoinModal(false);
-        setUserName('');
-        setUserEmail('');
     };
 
-    const handleCreateEvent = () => {
-        if (!eventName.trim() || !eventLocation.trim() || !eventDate.trim()) {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
-        }
-        const newCommunity = {
-            id: communities.length + 1,
-            name: eventName,
-            location: eventLocation,
-            members: 1,
-            nextEvent: eventDate
-        };
-        setCommunities([...communities, newCommunity]);
-        Alert.alert('Success', 'Your beach cleaning event has been created!');
-        setShowCreateModal(false);
-        setEventName('');
-        setEventLocation('');
-        setEventDate('');
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadData();
+        setRefreshing(false);
+    };
+
+    const getSuitabilityColor = (score) => {
+        if (score >= 80) return '#4CAF50';
+        if (score >= 60) return '#FF9800';
+        return '#F44336';
     };
 
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0288D1" />
+                }
+            >
                 {/* Header Section */}
                 <View style={styles.header}>
-                    <Image
-                        source={{ uri: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400' }}
-                        style={styles.headerImage}
-                    />
-                    <Text style={styles.title}>🏖️ SamudraSetu</Text>
-                    <Text style={styles.subtitle}>Join the Beach Cleaning Community!</Text>
-                    <Text style={styles.description}>
-                        Help keep India's beaches clean and sustainable. Connect with others, share efforts, and make a difference!
-                    </Text>
+                    <View style={styles.headerContent}>
+                        <Text style={styles.title}>🏖️ SamudraSetu</Text>
+                        <Text style={styles.subtitle}>Beach Recreational Suitability</Text>
+                        <Text style={styles.description}>
+                            Discover the best beaches across India with real-time suitability scores, weather data, and AI-powered insights.
+                        </Text>
+                    </View>
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                        style={styles.primaryButton}
-                        onPress={() => setShowJoinModal(true)}
-                    >
-                        <Text style={styles.buttonText}>Join Community</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.secondaryButton}
-                        onPress={() => setShowCreateModal(true)}
-                    >
-                        <Text style={styles.secondaryButtonText}>Create Event</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Stats Section */}
+                {/* Quick Stats */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>150+</Text>
+                        <Ionicons name="water" size={28} color="#0288D1" />
+                        <Text style={styles.statNumber}>{beaches.length > 0 ? '150+' : '...'}</Text>
                         <Text style={styles.statLabel}>Beaches</Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>5000+</Text>
-                        <Text style={styles.statLabel}>Members</Text>
+                        <Ionicons name="analytics" size={28} color="#4CAF50" />
+                        <Text style={styles.statNumber}>ML</Text>
+                        <Text style={styles.statLabel}>AI Powered</Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={styles.statNumber}>200+</Text>
-                        <Text style={styles.statLabel}>Events</Text>
+                        <Ionicons name="people" size={28} color="#FF9800" />
+                        <Text style={styles.statNumber}>5K+</Text>
+                        <Text style={styles.statLabel}>Users</Text>
                     </View>
                 </View>
 
-                {/* Active Communities */}
-                <View style={styles.communitiesSection}>
-                    <Text style={styles.sectionTitle}>Active Communities</Text>
-                    {communities.map((community) => (
-                        <View key={community.id} style={styles.communityCard}>
-                            <View style={styles.communityInfo}>
-                                <Text style={styles.communityName}>{community.name}</Text>
-                                <Text style={styles.communityLocation}>📍 {community.location}</Text>
-                                <View style={styles.communityMeta}>
-                                    <Text style={styles.metaText}>👥 {community.members} members</Text>
-                                    <Text style={styles.metaText}>📅 Next: {community.nextEvent}</Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.joinSmallButton}
-                                onPress={() => setShowJoinModal(true)}
-                            >
-                                <Text style={styles.joinSmallButtonText}>Join</Text>
-                            </TouchableOpacity>
+                {/* Featured Beaches */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>⭐ Top Recommended Beaches</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Beaches')}>
+                            <Text style={styles.seeAllText}>See All →</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#0288D1" />
                         </View>
-                    ))}
+                    ) : beaches.length > 0 ? (
+                        beaches.map((beach) => (
+                            <TouchableOpacity
+                                key={beach._id || beach.id}
+                                style={styles.featuredCard}
+                                onPress={() => navigation.navigate('BeachDetails', { beach })}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.featuredCardHeader}>
+                                    <View style={styles.featuredCardImage}>
+                                        <Text style={styles.featuredEmoji}>🏖️</Text>
+                                    </View>
+                                    <View style={styles.featuredCardContent}>
+                                        <Text style={styles.featuredName}>{beach.name}</Text>
+                                        <Text style={styles.featuredLocation}>
+                                            <Ionicons name="location" size={12} color="#666" /> {beach.state}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}>
+                                        <Text style={[styles.suitabilityBadgeText, { color: getSuitabilityColor(beach.suitability_score || 0) }]}>
+                                            {(beach.suitability_score || 0).toFixed(0)}%
+                                        </Text>
+                                    </View>
+                                </View>
+                                {beach.description && (
+                                    <Text style={styles.featuredDescription} numberOfLines={2}>
+                                        {beach.description}
+                                    </Text>
+                                )}
+                                <View style={styles.featuredFooter}>
+                                    <View style={styles.featuredMeta}>
+                                        {beach.crowd_level && (
+                                            <View style={styles.metaItem}>
+                                                <Ionicons
+                                                    name="people"
+                                                    size={14}
+                                                    color={beach.crowd_level === 'low' ? '#4CAF50' : '#FF9800'}
+                                                />
+                                                <Text style={styles.metaText}>
+                                                    {beach.crowd_level.charAt(0).toUpperCase() + beach.crowd_level.slice(1)}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {beach.cleanliness_score !== undefined && (
+                                            <View style={styles.metaItem}>
+                                                <Ionicons name="star" size={14} color="#FFD700" />
+                                                <Text style={styles.metaText}>
+                                                    Clean: {beach.cleanliness_score.toFixed(0)}%
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color="#0288D1" />
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No beaches available</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Features Section */}
-                <View style={styles.featuresSection}>
-                    <Text style={styles.sectionTitle}>What We Offer</Text>
-                    <View style={styles.featureCard}>
-                        <Text style={styles.featureIcon}>🗺️</Text>
-                        <Text style={styles.featureTitle}>Beach Discovery</Text>
-                        <Text style={styles.featureText}>Explore beaches with suitability scores</Text>
-                    </View>
-                    <View style={styles.featureCard}>
-                        <Text style={styles.featureIcon}>🌊</Text>
-                        <Text style={styles.featureTitle}>Real-time Data</Text>
-                        <Text style={styles.featureText}>Weather, water quality & safety info</Text>
-                    </View>
-                    <View style={styles.featureCard}>
-                        <Text style={styles.featureIcon}>♻️</Text>
-                        <Text style={styles.featureTitle}>Community Action</Text>
-                        <Text style={styles.featureText}>Join cleaning events & make impact</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}> Key Features</Text>
+                    <View style={styles.featuresGrid}>
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="analytics" size={32} color="#0288D1" />
+                            </View>
+                            <Text style={styles.featureTitle}>ML Prediction</Text>
+                            <Text style={styles.featureText}>
+                                AI-powered suitability scores for swimming, family, and adventure activities
+                            </Text>
+                        </View>
+
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="camera" size={32} color="#4CAF50" />
+                            </View>
+                            <Text style={styles.featureTitle}>CV Verification</Text>
+                            <Text style={styles.featureText}>
+                                Upload beach condition images for crowd level and cleanliness analysis
+                            </Text>
+                        </View>
+
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="map" size={32} color="#FF9800" />
+                            </View>
+                            <Text style={styles.featureTitle}>Smart Itinerary</Text>
+                            <Text style={styles.featureText}>
+                                Graph-based route optimization for the perfect beach trip
+                            </Text>
+                        </View>
+
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="chatbubbles" size={32} color="#9C27B0" />
+                            </View>
+                            <Text style={styles.featureTitle}>Sentiment Analysis</Text>
+                            <Text style={styles.featureText}>
+                                Real-time beach vibe detection from user reviews
+                            </Text>
+                        </View>
+
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="leaf" size={32} color="#4CAF50" />
+                            </View>
+                            <Text style={styles.featureTitle}>Eco Impact</Text>
+                            <Text style={styles.featureText}>
+                                Calculate environmental impact and get sustainability suggestions
+                            </Text>
+                        </View>
+
+                        <View style={styles.featureCard}>
+                            <View style={styles.featureIcon}>
+                                <Ionicons name="cloud" size={32} color="#00BCD4" />
+                            </View>
+                            <Text style={styles.featureTitle}>Live Weather</Text>
+                            <Text style={styles.featureText}>
+                                Real-time weather data for informed beach visit planning
+                            </Text>
+                        </View>
                     </View>
                 </View>
+
+                {/* Quick Actions */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+                    <View style={styles.quickActions}>
+                        <TouchableOpacity
+                            style={styles.quickActionButton}
+                            onPress={() => navigation.navigate('Beaches')}
+                        >
+                            <Ionicons name="water" size={24} color="#0288D1" />
+                            <Text style={styles.quickActionText}>Explore Beaches</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.quickActionButton}
+                            onPress={() => navigation.navigate('Utilities')}
+                        >
+                            <Ionicons name="map" size={24} color="#4CAF50" />
+                            <Text style={styles.quickActionText}>Plan Itinerary</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.quickActionButton}
+                            onPress={() => navigation.navigate('Profile')}
+                        >
+                            <Ionicons name="person" size={24} color="#FF9800" />
+                            <Text style={styles.quickActionText}>My Profile</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Bottom Padding */}
+                <View style={{ height: 30 }} />
             </ScrollView>
-
-            {/* Join Community Modal */}
-            <Modal
-                visible={showJoinModal}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowJoinModal(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Join Beach Cleaning Community</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Your Name"
-                            value={userName}
-                            onChangeText={setUserName}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Email Address"
-                            value={userEmail}
-                            onChangeText={setUserEmail}
-                            keyboardType="email-address"
-                        />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={handleJoinCommunity}
-                            >
-                                <Text style={styles.buttonText}>Join Now</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowJoinModal(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Create Event Modal */}
-            <Modal
-                visible={showCreateModal}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowCreateModal(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Create Beach Cleaning Event</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Event Name"
-                            value={eventName}
-                            onChangeText={setEventName}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Beach Location"
-                            value={eventLocation}
-                            onChangeText={setEventLocation}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Date (YYYY-MM-DD)"
-                            value={eventDate}
-                            onChangeText={setEventDate}
-                        />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={handleCreateEvent}
-                            >
-                                <Text style={styles.buttonText}>Create Event</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowCreateModal(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }
@@ -231,94 +277,58 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: '#F5F7FA',
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingBottom: 30,
+        paddingBottom: 100,
     },
     header: {
-        backgroundColor: '#E3F2FD',
-        padding: 20,
-        alignItems: 'center',
+        backgroundColor: '#0288D1',
+        paddingTop: 20,
+        paddingBottom: 30,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
     },
-    headerImage: {
-        width: '100%',
-        height: 200,
-        borderRadius: 15,
-        marginBottom: 20,
+    headerContent: {
+        alignItems: 'center',
     },
     title: {
-        fontSize: 32,
+        fontSize: 36,
         fontWeight: 'bold',
-        color: '#01579B',
-        marginBottom: 10,
+        color: '#FFFFFF',
+        marginBottom: 8,
     },
     subtitle: {
-        fontSize: 20,
-        color: '#0277BD',
+        fontSize: 16,
+        color: '#E3F2FD',
         marginBottom: 15,
         textAlign: 'center',
-        fontWeight: '600',
     },
     description: {
-        fontSize: 15,
-        color: '#424242',
+        fontSize: 14,
+        color: '#B3E5FC',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: 20,
         paddingHorizontal: 10,
-    },
-    actionButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        padding: 20,
-        gap: 10,
-    },
-    primaryButton: {
-        flex: 1,
-        backgroundColor: '#0288D1',
-        paddingVertical: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
-    secondaryButton: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#0288D1',
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    secondaryButtonText: {
-        color: '#0288D1',
-        fontSize: 16,
-        fontWeight: 'bold',
     },
     statsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         backgroundColor: '#FFFFFF',
         marginHorizontal: 20,
+        marginTop: -20,
         padding: 20,
-        borderRadius: 15,
-        elevation: 2,
+        borderRadius: 20,
+        elevation: 5,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        marginBottom: 25,
     },
     statBox: {
         alignItems: 'center',
@@ -326,149 +336,186 @@ const styles = StyleSheet.create({
     statNumber: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#0288D1',
+        color: '#01579B',
+        marginTop: 8,
     },
     statLabel: {
         fontSize: 12,
         color: '#757575',
-        marginTop: 5,
+        marginTop: 4,
     },
-    communitiesSection: {
-        padding: 20,
+    section: {
+        paddingHorizontal: 20,
+        marginBottom: 25,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
     },
     sectionTitle: {
         fontSize: 22,
         fontWeight: 'bold',
         color: '#01579B',
-        marginBottom: 15,
     },
-    communityCard: {
-        backgroundColor: '#FFFFFF',
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 15,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    seeAllText: {
+        fontSize: 14,
+        color: '#0288D1',
+        fontWeight: '600',
+    },
+    loadingContainer: {
+        padding: 40,
         alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
     },
-    communityInfo: {
+    featuredCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 15,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    featuredCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    featuredCardImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 12,
+        backgroundColor: '#E3F2FD',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    featuredEmoji: {
+        fontSize: 30,
+    },
+    featuredCardContent: {
         flex: 1,
     },
-    communityName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#01579B',
-        marginBottom: 5,
-    },
-    communityLocation: {
-        fontSize: 14,
-        color: '#757575',
-        marginBottom: 8,
-    },
-    communityMeta: {
-        flexDirection: 'row',
-        gap: 15,
-    },
-    metaText: {
-        fontSize: 12,
-        color: '#9E9E9E',
-    },
-    joinSmallButton: {
-        backgroundColor: '#0288D1',
-        paddingVertical: 8,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    joinSmallButtonText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    featuresSection: {
-        padding: 20,
-    },
-    featureCard: {
-        backgroundColor: '#FFFFFF',
-        padding: 20,
-        borderRadius: 12,
-        marginBottom: 15,
-        alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-    },
-    featureIcon: {
-        fontSize: 40,
-        marginBottom: 10,
-    },
-    featureTitle: {
+    featuredName: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#01579B',
-        marginBottom: 5,
+        marginBottom: 4,
     },
-    featureText: {
+    featuredLocation: {
+        fontSize: 13,
+        color: '#666',
+    },
+    suitabilityBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    suitabilityBadgeText: {
         fontSize: 14,
-        color: '#757575',
-        textAlign: 'center',
+        fontWeight: 'bold',
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    featuredDescription: {
+        fontSize: 13,
+        color: '#888',
+        lineHeight: 18,
+        marginBottom: 12,
+    },
+    featuredFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+    },
+    featuredMeta: {
+        flexDirection: 'row',
+        gap: 15,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    metaText: {
+        fontSize: 12,
+        color: '#666',
+    },
+    emptyContainer: {
+        padding: 40,
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#999',
+    },
+    featuresGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 15,
+    },
+    featureCard: {
+        width: '48%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        marginBottom: 10,
+    },
+    featureIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#F5F5F5',
         justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 12,
     },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 15,
-        padding: 25,
-        width: '85%',
-        maxWidth: 400,
-    },
-    modalTitle: {
-        fontSize: 20,
+    featureTitle: {
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#01579B',
-        marginBottom: 20,
+        marginBottom: 8,
         textAlign: 'center',
     },
-    input: {
-        backgroundColor: '#F5F5F5',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 15,
-        fontSize: 16,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
+    featureText: {
+        fontSize: 11,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 16,
     },
-    modalButtons: {
-        gap: 10,
-        marginTop: 10,
+    quickActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
     },
-    modalButton: {
-        backgroundColor: '#0288D1',
-        paddingVertical: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    cancelButton: {
+    quickActionButton: {
+        flex: 1,
         backgroundColor: '#FFFFFF',
-        paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 16,
+        padding: 20,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
     },
-    cancelButtonText: {
-        color: '#757575',
-        fontSize: 16,
+    quickActionText: {
+        fontSize: 12,
+        color: '#333',
+        marginTop: 8,
         fontWeight: '600',
+        textAlign: 'center',
     },
 });
