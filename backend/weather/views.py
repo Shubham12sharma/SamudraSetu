@@ -22,20 +22,61 @@ def get_weather(request):
     # OpenWeatherMap API (free tier - no key required for basic calls)
     # Using a free API endpoint that doesn't require authentication
     try:
-        # Using open-meteo (free, no API key required)
-        url = f'https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&hourly=temperature_2m&timezone=auto'
-        response = requests.get(url, timeout=5)
-        
+        # Using Open-Meteo (free, no API key required)
+        # Request current weather; hourly values are available separately if needed
+        url = f'https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&timezone=auto'
+        response = requests.get(url, timeout=6)
+
         if response.status_code == 200:
             data = response.json()
-            current = data.get('current', {})
-            
+            # Open-Meteo returns current weather under 'current_weather'
+            current = data.get('current_weather') or {}
+
+            # temperature and wind speed available directly; precipitation/humidity may not be present in current_weather
+            temperature = current.get('temperature')
+            wind_speed = current.get('windspeed')
+
+            # Try to pull hourly precipitation/humidity if present (best-effort)
+            humidity = None
+            precipitation = None
+            hourly = data.get('hourly') or {}
+            if hourly:
+                # hourly keys in open-meteo typically like 'relativehumidity_2m' and 'precipitation'
+                rh = hourly.get('relativehumidity_2m')
+                precip = hourly.get('precipitation')
+                time_idx = 0
+                try:
+                    # match by current time index if times array exists
+                    times = hourly.get('time')
+                    if times and current.get('time') and current['time'] in times:
+                        time_idx = times.index(current['time'])
+                except Exception:
+                    time_idx = 0
+
+                try:
+                    if rh and isinstance(rh, list):
+                        humidity = rh[time_idx]
+                except Exception:
+                    humidity = None
+
+                try:
+                    if precip and isinstance(precip, list):
+                        precipitation = precip[time_idx]
+                except Exception:
+                    precipitation = None
+
+            # Fallback defaults
+            temperature = temperature if temperature is not None else 28
+            humidity = humidity if humidity is not None else 65
+            precipitation = precipitation if precipitation is not None else 0
+            wind_speed = wind_speed if wind_speed is not None else 12
+
             return Response({
-                'temperature': current.get('temperature_2m', 28),
-                'humidity': current.get('relative_humidity_2m', 65),
-                'precipitation': current.get('precipitation', 0),
-                'wind_speed': current.get('wind_speed_10m', 12),
-                'condition': get_weather_condition(current.get('temperature_2m', 28), current.get('precipitation', 0)),
+                'temperature': temperature,
+                'humidity': humidity,
+                'precipitation': precipitation,
+                'wind_speed': wind_speed,
+                'condition': get_weather_condition(temperature, precipitation),
                 'source': 'open-meteo'
             })
     except Exception as e:

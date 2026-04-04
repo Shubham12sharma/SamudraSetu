@@ -1,10 +1,8 @@
-// This is a comprehensive BeachDetailScreen with ALL backend features integrated
-// Replace the existing BeachDetailScreen.js with this file
-
+// ✅ CORRECTED: Proper ScrollView scrolling with SafeAreaView edges
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -14,7 +12,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -44,11 +42,56 @@ export default function BeachDetailsScreen({ route, navigation }) {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [ecoImpact, setEcoImpact] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
+    const [predictingSuitability, setPredictingSuitability] = useState(false);
 
     useEffect(() => {
         loadAllData();
         loadUserLocation();
     }, [beachId]);
+
+    useEffect(() => {
+        const fetchEco = async () => {
+            if (!userLocation || !beachId) return;
+            try {
+                const impactData = await ecoAPI.calculateImpact(
+                    userLocation.lat,
+                    userLocation.lon,
+                    beachId,
+                    'car',
+                    1,
+                    1,
+                    1
+                );
+                setEcoImpact(impactData);
+            } catch (err) {
+                console.error('Eco impact (deferred) error:', err);
+            }
+        };
+        fetchEco();
+    }, [userLocation, beachId]);
+
+    const parseTags = (raw) => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            try {
+                if (trimmed.startsWith('[')) {
+                    const normalized = trimmed.replace(/'/g, '"');
+                    const parsed = JSON.parse(normalized);
+                    return Array.isArray(parsed) ? parsed : [];
+                }
+
+                if (trimmed.indexOf(',') !== -1) {
+                    return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            } catch (e) {
+                console.warn('parseTags: could not parse tags', raw, e);
+                return [];
+            }
+        }
+        return [];
+    };
 
     const loadUserLocation = async () => {
         try {
@@ -71,63 +114,45 @@ export default function BeachDetailsScreen({ route, navigation }) {
             const userData = await getUserData();
             setUser(userData);
 
-            // Load beach details
             if (beachId) {
-                const beachData = await beachesAPI.getById(beachId);
+                const rawBeach = await beachesAPI.getById(beachId);
+                const beachData = rawBeach?.result || rawBeach || {};
                 setBeach(beachData);
 
-                // Load weather
                 if (beachData.latitude && beachData.longitude) {
                     try {
-                        const weatherData = await weatherAPI.getWeather(
+                        const rawWeather = await weatherAPI.getWeather(
                             beachData.latitude,
                             beachData.longitude
                         );
+                        const weatherData = rawWeather?.data || rawWeather || rawWeather;
                         setWeather(weatherData);
                     } catch (error) {
                         console.error('Weather error:', error);
                     }
 
-                    // Load suitability scores
                     try {
                         const suitabilityData = await mlAPI.getSuitability(beachId);
-                        setSuitability(suitabilityData.suitability_scores);
+                        const scores = suitabilityData?.suitability_scores || suitabilityData?.suitability || suitabilityData;
+                        setSuitability(scores);
                     } catch (error) {
                         console.error('Suitability error:', error);
                     }
 
-                    // Load sentiment/vibe
                     try {
                         const vibeData = await sentimentAPI.getBeachVibe(beachId);
-                        setVibe(vibeData);
+                        const normalizedVibe = vibeData?.data || vibeData || {};
+                        setVibe(normalizedVibe);
                     } catch (error) {
                         console.error('Vibe error:', error);
                     }
 
-                    // Load reviews
                     try {
                         const reviewsData = await beachesAPI.getReviews(beachId);
-                        setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+                        const normalizedReviews = reviewsData?.results || reviewsData || [];
+                        setReviews(Array.isArray(normalizedReviews) ? normalizedReviews : []);
                     } catch (error) {
                         console.error('Reviews error:', error);
-                    }
-
-                    // Calculate eco impact if user location available
-                    if (userLocation) {
-                        try {
-                            const impactData = await ecoAPI.calculateImpact(
-                                userLocation.lat,
-                                userLocation.lon,
-                                beachId,
-                                'car',
-                                1,
-                                1,
-                                1
-                            );
-                            setEcoImpact(impactData);
-                        } catch (error) {
-                            console.error('Eco impact error:', error);
-                        }
                     }
                 }
             }
@@ -158,7 +183,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                 const userId = user?._id || user?.id || 'anonymous';
                 await cvAPI.uploadImage(beachId, result.assets[0].uri, userId);
                 Alert.alert('Success', 'Image uploaded! It will be processed for verification.');
-                loadAllData(); // Reload to get updated condition
+                loadAllData();
             }
         } catch (error) {
             console.error('Upload error:', error);
@@ -188,17 +213,65 @@ export default function BeachDetailsScreen({ route, navigation }) {
         }
     };
 
+    const handlePredictSuitability = async () => {
+        if (!beach || !beachId) return;
+
+        try {
+            setPredictingSuitability(true);
+
+            const features = {};
+            if (weather) {
+                if (typeof weather.temperature === 'number') {
+                    features.temperature = weather.temperature;
+                    features.water_temp = weather.temperature - 2;
+                }
+                if (typeof weather.humidity === 'number') {
+                    features.humidity = weather.humidity;
+                }
+                if (typeof weather.precipitation === 'number') {
+                    features.precipitation = weather.precipitation;
+                }
+                if (typeof weather.wind_speed === 'number') {
+                    features.wind_speed = weather.wind_speed;
+                }
+                if (typeof weather.air_quality_index === 'number') {
+                    features.air_quality_index = weather.air_quality_index;
+                }
+                if (typeof weather.tide_height === 'number') {
+                    features.tide_height = weather.tide_height;
+                }
+            }
+
+            const result = await mlAPI.predictSuitability(beachId, features);
+            if (result && result.suitability_scores) {
+                setSuitability(result.suitability_scores);
+                Alert.alert(
+                    'Suitability Updated',
+                    `Overall suitability is now ${result.suitability_scores.overall.toFixed(0)}%.`
+                );
+            }
+        } catch (error) {
+            console.error('Predict suitability error:', error);
+            Alert.alert(
+                'Prediction Failed',
+                'Could not update suitability right now. Please try again later.'
+            );
+        } finally {
+            setPredictingSuitability(false);
+        }
+    };
+
     const getSuitabilityColor = (score) => {
-        if (score >= 80) return '#4CAF50';
-        if (score >= 60) return '#FF9800';
-        return '#F44336';
+        if (score >= 80) return '#10B981';
+        if (score >= 60) return '#F59E0B';
+        return '#EF4444';
     };
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0288D1" />
+                    <ActivityIndicator size="large" color="#0891B2" />
                     <Text style={styles.loadingText}>Loading beach details...</Text>
                 </View>
             </SafeAreaView>
@@ -206,48 +279,89 @@ export default function BeachDetailsScreen({ route, navigation }) {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                        <Ionicons name="arrow-back" size={24} color="#01579B" />
-                    </TouchableOpacity>
-                    <View style={styles.headerTitle}>
-                        <Text style={styles.title}>{beach.name}</Text>
-                        <Text style={styles.subtitle}>
-                            <Ionicons name="location" size={14} color="#666" /> {beach.state}
-                        </Text>
-                    </View>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            {/* Header - Outside ScrollView */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={28} color="#0891B2" />
+                </TouchableOpacity>
+                <View style={styles.headerTitle}>
+                    <Text style={styles.title}>{beach.name}</Text>
+                    <Text style={styles.subtitle}>{beach.state}</Text>
                 </View>
+            </View>
 
+            {/* ✅ MAIN SCROLLABLE CONTENT - Y-axis only */}
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.contentContainer}
+                scrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+            >
                 {/* Hero Section with Suitability Score */}
                 <View style={styles.heroSection}>
                     <View style={styles.heroImage}>
                         <Text style={styles.beachEmoji}>🏖️</Text>
                     </View>
+
                     {suitability && (
                         <View style={styles.suitabilityCard}>
-                            <Text style={styles.suitabilityTitle}>Recreational Suitability</Text>
-                            <Text style={[styles.suitabilityScore, { color: getSuitabilityColor(suitability.overall) }]}>
+                            <View style={styles.suitabilityHeaderRow}>
+                                <Text style={styles.suitabilityTitle}>Recreational Suitability</Text>
+                                {predictingSuitability ? (
+                                    <ActivityIndicator size="small" color="#0891B2" />
+                                ) : (
+                                    <TouchableOpacity
+                                        onPress={handlePredictSuitability}
+                                        style={styles.refreshSuitabilityButton}
+                                    >
+                                        <Ionicons name="refresh" size={14} color="#0891B2" />
+                                        <Text style={styles.refreshSuitabilityText}>Update</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            <Text
+                                style={[
+                                    styles.suitabilityScore,
+                                    { color: getSuitabilityColor(suitability.overall) },
+                                ]}
+                            >
                                 {suitability.overall.toFixed(0)}%
                             </Text>
+
                             <View style={styles.suitabilityBreakdown}>
                                 <View style={styles.suitabilityItem}>
                                     <Text style={styles.suitabilityLabel}>Swimming</Text>
-                                    <Text style={[styles.suitabilityValue, { color: getSuitabilityColor(suitability.swimming) }]}>
+                                    <Text
+                                        style={[
+                                            styles.suitabilityValue,
+                                            { color: getSuitabilityColor(suitability.swimming) },
+                                        ]}
+                                    >
                                         {suitability.swimming.toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
                                     <Text style={styles.suitabilityLabel}>Family</Text>
-                                    <Text style={[styles.suitabilityValue, { color: getSuitabilityColor(suitability.family) }]}>
+                                    <Text
+                                        style={[
+                                            styles.suitabilityValue,
+                                            { color: getSuitabilityColor(suitability.family) },
+                                        ]}
+                                    >
                                         {suitability.family.toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
                                     <Text style={styles.suitabilityLabel}>Adventure</Text>
-                                    <Text style={[styles.suitabilityValue, { color: getSuitabilityColor(suitability.adventure) }]}>
+                                    <Text
+                                        style={[
+                                            styles.suitabilityValue,
+                                            { color: getSuitabilityColor(suitability.adventure) },
+                                        ]}
+                                    >
                                         {suitability.adventure.toFixed(0)}%
                                     </Text>
                                 </View>
@@ -262,23 +376,23 @@ export default function BeachDetailsScreen({ route, navigation }) {
                         <Text style={styles.cardTitle}>🌤️ Current Weather</Text>
                         <View style={styles.weatherGrid}>
                             <View style={styles.weatherItem}>
-                                <Ionicons name="thermometer" size={24} color="#FF6B6B" />
+                                <Ionicons name="thermometer" size={24} color="#0891B2" />
                                 <Text style={styles.weatherValue}>{weather.temperature}°C</Text>
                                 <Text style={styles.weatherLabel}>Temperature</Text>
                             </View>
                             <View style={styles.weatherItem}>
-                                <Ionicons name="water" size={24} color="#4ECDC4" />
+                                <Ionicons name="water" size={24} color="#0891B2" />
                                 <Text style={styles.weatherValue}>{weather.humidity}%</Text>
                                 <Text style={styles.weatherLabel}>Humidity</Text>
                             </View>
                             <View style={styles.weatherItem}>
-                                <Ionicons name="rainy" size={24} color="#95E1D3" />
+                                <Ionicons name="rainy" size={24} color="#0891B2" />
                                 <Text style={styles.weatherValue}>{weather.precipitation}mm</Text>
                                 <Text style={styles.weatherLabel}>Precipitation</Text>
                             </View>
                             <View style={styles.weatherItem}>
-                                <Ionicons name="wind" size={24} color="#AA96DA" />
-                                <Text style={styles.weatherValue}>{weather.wind_speed} km/h</Text>
+                                <Ionicons name="wind" size={24} color="#0891B2" />
+                                <Text style={styles.weatherValue}>{weather.wind_speed}</Text>
                                 <Text style={styles.weatherLabel}>Wind Speed</Text>
                             </View>
                         </View>
@@ -290,40 +404,45 @@ export default function BeachDetailsScreen({ route, navigation }) {
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>📸 Beach Condition</Text>
-                        <TouchableOpacity
-                            style={styles.uploadButton}
-                            onPress={handleUploadImage}
-                            disabled={uploadingImage}
-                        >
-                            {uploadingImage ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <>
-                                    <Ionicons name="camera" size={16} color="#fff" />
-                                    <Text style={styles.uploadButtonText}>Upload</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
+                        {uploadingImage ? (
+                            <ActivityIndicator size="small" color="#0891B2" />
+                        ) : (
+                            <TouchableOpacity onPress={handleUploadImage} style={styles.uploadButton}>
+                                <Ionicons name="cloud-upload" size={16} color="#fff" />
+                                <Text style={styles.uploadButtonText}>Upload</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
+
                     <View style={styles.conditionGrid}>
                         <View style={styles.conditionItem}>
                             <Text style={styles.conditionLabel}>Crowd Level</Text>
-                            <Text style={[styles.conditionValue, {
-                                color: beach.crowd_level === 'low' ? '#4CAF50' :
-                                    beach.crowd_level === 'moderate' ? '#FF9800' : '#F44336'
-                            }]}>
-                                {beach.crowd_level ? beach.crowd_level.charAt(0).toUpperCase() + beach.crowd_level.slice(1) : 'Unknown'}
+                            <Text style={styles.conditionValue}>
+                                {beach.crowd_level
+                                    ? beach.crowd_level.charAt(0).toUpperCase() + beach.crowd_level.slice(1)
+                                    : 'Unknown'}
                             </Text>
                         </View>
+
                         <View style={styles.conditionItem}>
                             <Text style={styles.conditionLabel}>Cleanliness</Text>
-                            <Text style={[styles.conditionValue, {
-                                color: (beach.cleanliness_score || 0) >= 70 ? '#4CAF50' :
-                                    (beach.cleanliness_score || 0) >= 50 ? '#FF9800' : '#F44336'
-                            }]}>
+                            <Text
+                                style={[
+                                    styles.conditionValue,
+                                    {
+                                        color:
+                                            (beach.cleanliness_score || 0) >= 70
+                                                ? '#10B981'
+                                                : (beach.cleanliness_score || 0) >= 50
+                                                    ? '#F59E0B'
+                                                    : '#EF4444',
+                                    },
+                                ]}
+                            >
                                 {beach.cleanliness_score ? beach.cleanliness_score.toFixed(0) + '%' : 'N/A'}
                             </Text>
                         </View>
+
                         {beach.condition_verifications > 0 && (
                             <View style={styles.conditionItem}>
                                 <Text style={styles.conditionLabel}>Verifications</Text>
@@ -336,17 +455,24 @@ export default function BeachDetailsScreen({ route, navigation }) {
                 {/* Sentiment/Vibe Analysis */}
                 {vibe && (
                     <View style={styles.card}>
-                        <Text style={styles.cardTitle}>💭 Beach Vibe</Text>
+                        <Text style={styles.cardTitle}>Beach Vibe</Text>
+
                         {vibe.current_sentiment_score !== undefined && (
                             <View style={styles.vibeScore}>
                                 <Text style={styles.vibeScoreLabel}>Sentiment Score</Text>
-                                <Text style={[styles.vibeScoreValue, {
-                                    color: vibe.current_sentiment_score > 0 ? '#4CAF50' : '#F44336'
-                                }]}>
+                                <Text
+                                    style={[
+                                        styles.vibeScoreValue,
+                                        {
+                                            color: vibe.current_sentiment_score > 0 ? '#10B981' : '#EF4444',
+                                        },
+                                    ]}
+                                >
                                     {(vibe.current_sentiment_score * 100).toFixed(0)}%
                                 </Text>
                             </View>
                         )}
+
                         {vibe.current_vibe_tags && vibe.current_vibe_tags.length > 0 && (
                             <View style={styles.vibeTags}>
                                 {vibe.current_vibe_tags.map((tag, index) => (
@@ -363,23 +489,25 @@ export default function BeachDetailsScreen({ route, navigation }) {
                 {ecoImpact && (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>🌱 Environmental Impact</Text>
+
                         <View style={styles.ecoGrid}>
                             <View style={styles.ecoItem}>
-                                <Ionicons name="car" size={24} color="#FF6B6B" />
-                                <Text style={styles.ecoValue}>{ecoImpact.impact.carbon_emissions_kg} kg</Text>
-                                <Text style={styles.ecoLabel}>CO2 Emissions</Text>
+                                <Ionicons name="leaf" size={24} color="#10B981" />
+                                <Text style={styles.ecoValue}>{ecoImpact.impact.carbon_emissions_kg}</Text>
+                                <Text style={styles.ecoLabel}>kg CO2</Text>
                             </View>
                             <View style={styles.ecoItem}>
-                                <Ionicons name="trash" size={24} color="#FFA726" />
-                                <Text style={styles.ecoValue}>{ecoImpact.impact.plastic_waste_kg} kg</Text>
-                                <Text style={styles.ecoLabel}>Plastic Waste</Text>
+                                <Ionicons name="alert-circle" size={24} color="#EF4444" />
+                                <Text style={styles.ecoValue}>{ecoImpact.impact.plastic_waste_kg}</Text>
+                                <Text style={styles.ecoLabel}>kg Plastic</Text>
                             </View>
                             <View style={styles.ecoItem}>
-                                <Ionicons name="leaf" size={24} color="#4CAF50" />
+                                <Ionicons name="flower" size={24} color="#10B981" />
                                 <Text style={styles.ecoValue}>{ecoImpact.impact.trees_needed_to_offset}</Text>
-                                <Text style={styles.ecoLabel}>Trees to Offset</Text>
+                                <Text style={styles.ecoLabel}>Trees Needed</Text>
                             </View>
                         </View>
+
                         {ecoImpact.eco_suggestions && ecoImpact.eco_suggestions.length > 0 && (
                             <View style={styles.suggestions}>
                                 <Text style={styles.suggestionsTitle}>💡 Eco Suggestions</Text>
@@ -406,13 +534,14 @@ export default function BeachDetailsScreen({ route, navigation }) {
                     <View style={styles.cardHeader}>
                         <Text style={styles.cardTitle}>⭐ Reviews ({reviews.length})</Text>
                         <TouchableOpacity
-                            style={styles.addReviewButton}
                             onPress={() => setShowReviewModal(true)}
+                            style={styles.addReviewButton}
                         >
-                            <Ionicons name="add-circle" size={20} color="#0288D1" />
+                            <Ionicons name="add-circle" size={20} color="#0891B2" />
                             <Text style={styles.addReviewText}>Add Review</Text>
                         </TouchableOpacity>
                     </View>
+
                     {reviews.length > 0 ? (
                         reviews.slice(0, 5).map((review, index) => (
                             <View key={index} style={styles.reviewItem}>
@@ -427,10 +556,13 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                     )}
                                 </View>
                                 <Text style={styles.reviewText}>{review.review_text}</Text>
-                                {review.extracted_tags && review.extracted_tags.length > 0 && (
+
+                                {parseTags(review.extracted_tags).length > 0 && (
                                     <View style={styles.reviewTags}>
-                                        {review.extracted_tags.slice(0, 3).map((tag, tagIndex) => (
-                                            <Text key={tagIndex} style={styles.reviewTag}>#{tag}</Text>
+                                        {parseTags(review.extracted_tags).slice(0, 3).map((tag, tagIndex) => (
+                                            <Text key={tagIndex} style={styles.reviewTag}>
+                                                #{tag}
+                                            </Text>
                                         ))}
                                     </View>
                                 )}
@@ -441,65 +573,73 @@ export default function BeachDetailsScreen({ route, navigation }) {
                     )}
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionButtons}>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => navigation.navigate('Utilities', { startBeachId: beachId })}
-                    >
-                        <Ionicons name="map" size={20} color="#fff" />
-                        <Text style={styles.actionButtonText}>Plan Itinerary</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.actionButtonSecondary]}
-                        onPress={handleUploadImage}
-                    >
-                        <Ionicons name="camera" size={20} color="#0288D1" />
-                        <Text style={[styles.actionButtonText, { color: '#0288D1' }]}>Upload Photo</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* Bottom spacing to account for fixed action bar */}
+                <View style={{ height: 100 }} />
             </ScrollView>
+
+            {/* Action Buttons - Fixed at bottom */}
+            <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => navigation.navigate('Utilities', { startBeachId: beachId })}
+                >
+                    <Ionicons name="map" size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>Plan Itinerary</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.actionButton, styles.actionButtonSecondary]}
+                    onPress={handleUploadImage}
+                >
+                    <Ionicons name="camera" size={20} color="#0891B2" />
+                    <Text style={[styles.actionButtonText, { color: '#0891B2' }]}>Upload Photo</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Review Modal */}
             <Modal
                 visible={showReviewModal}
                 transparent={true}
-                animationType="slide"
+                animationType="fade"
                 onRequestClose={() => setShowReviewModal(false)}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Write a Review</Text>
+
                         <View style={styles.ratingSelector}>
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <TouchableOpacity
                                     key={star}
                                     onPress={() => setReviewRating(star)}
+                                    style={{
+                                        transform: [{ scale: reviewRating >= star ? 1.2 : 1 }],
+                                    }}
                                 >
-                                    <Ionicons
-                                        name={star <= reviewRating ? 'star' : 'star-outline'}
-                                        size={32}
-                                        color="#FFD700"
-                                    />
+                                    <Text style={{ fontSize: 32 }}>
+                                        {reviewRating >= star ? '⭐' : '☆'}
+                                    </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
+
                         <TextInput
                             style={styles.reviewInput}
-                            placeholder="Share your experience..."
+                            placeholder="Share your beach experience..."
+                            placeholderTextColor="#999"
                             value={reviewText}
                             onChangeText={setReviewText}
                             multiline
-                            numberOfLines={6}
-                            placeholderTextColor="#999"
                         />
+
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={styles.modalButton}
                                 onPress={handleSubmitReview}
                             >
-                                <Text style={styles.modalButtonText}>Submit</Text>
+                                <Text style={styles.modalButtonText}>Submit Review</Text>
                             </TouchableOpacity>
+
                             <TouchableOpacity
                                 style={styles.modalCancelButton}
                                 onPress={() => setShowReviewModal(false)}
@@ -517,195 +657,249 @@ export default function BeachDetailsScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F7FA',
+        backgroundColor: '#F0F9FC',
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: '#F0F9FC',
     },
     loadingText: {
-        marginTop: 10,
-        color: '#666',
+        marginTop: 12,
+        color: '#0891B2',
+        fontSize: 16,
+        fontWeight: '500',
     },
     scrollView: {
         flex: 1,
     },
     contentContainer: {
-        paddingBottom: 100,
+        paddingHorizontal: 0,
+        paddingVertical: 0,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
+        borderBottomColor: '#E0F2FE',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
     },
     backButton: {
-        marginRight: 15,
+        marginRight: 12,
+        padding: 8,
     },
     headerTitle: {
         flex: 1,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#01579B',
+        fontWeight: '700',
+        color: '#0C4A6E',
     },
     subtitle: {
         fontSize: 14,
-        color: '#666',
-        marginTop: 4,
+        color: '#64748B',
+        marginTop: 2,
     },
     heroSection: {
         backgroundColor: '#fff',
-        padding: 20,
-        marginBottom: 15,
+        padding: 16,
+        marginBottom: 12,
     },
     heroImage: {
         width: '100%',
         height: 200,
-        backgroundColor: '#E3F2FD',
-        borderRadius: 16,
+        backgroundColor: '#E0F2FE',
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 16,
+        borderWidth: 2,
+        borderColor: '#BAE6FD',
     },
     beachEmoji: {
         fontSize: 80,
     },
     suitabilityCard: {
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        padding: 15,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 16,
+        borderLeftWidth: 4,
+        borderLeftColor: '#0891B2',
+    },
+    suitabilityHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
     },
     suitabilityTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333',
-        marginBottom: 10,
-        textAlign: 'center',
+        color: '#0C4A6E',
     },
     suitabilityScore: {
-        fontSize: 48,
-        fontWeight: 'bold',
+        fontSize: 56,
+        fontWeight: '800',
         textAlign: 'center',
-        marginBottom: 15,
+        marginBottom: 16,
     },
     suitabilityBreakdown: {
         flexDirection: 'row',
         justifyContent: 'space-around',
+        gap: 12,
     },
     suitabilityItem: {
+        flex: 1,
         alignItems: 'center',
+        backgroundColor: '#fff',
+        paddingVertical: 12,
+        borderRadius: 12,
     },
     suitabilityLabel: {
         fontSize: 12,
-        color: '#666',
-        marginBottom: 5,
+        color: '#64748B',
+        marginBottom: 6,
+        fontWeight: '500',
     },
     suitabilityValue: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
+    },
+    refreshSuitabilityButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#0891B2',
+        gap: 6,
+        backgroundColor: '#E0F2FE',
+    },
+    refreshSuitabilityText: {
+        color: '#0891B2',
+        fontSize: 12,
+        fontWeight: '600',
     },
     card: {
         backgroundColor: '#fff',
-        marginHorizontal: 15,
-        marginBottom: 15,
+        marginHorizontal: 12,
+        marginBottom: 12,
         borderRadius: 16,
-        padding: 20,
+        padding: 16,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        shadowOpacity: 0.08,
+        shadowRadius: 3,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 12,
     },
     cardTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
-        color: '#01579B',
-        marginBottom: 15,
+        fontWeight: '700',
+        color: '#0C4A6E',
+        marginBottom: 12,
     },
     weatherGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+        gap: 8,
     },
     weatherItem: {
         width: '48%',
         alignItems: 'center',
-        padding: 15,
-        backgroundColor: '#F8F9FA',
+        padding: 12,
+        backgroundColor: '#F0F9FC',
         borderRadius: 12,
-        marginBottom: 10,
+        marginBottom: 8,
     },
     weatherValue: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#333',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#0C4A6E',
         marginTop: 8,
     },
     weatherLabel: {
         fontSize: 12,
-        color: '#666',
+        color: '#64748B',
         marginTop: 4,
+        fontWeight: '500',
     },
     weatherCondition: {
         fontSize: 16,
-        color: '#333',
+        color: '#0C4A6E',
         textAlign: 'center',
-        marginTop: 10,
+        marginTop: 12,
         fontWeight: '600',
     },
     uploadButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#0288D1',
-        paddingHorizontal: 15,
+        backgroundColor: '#0891B2',
+        paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
-        gap: 5,
+        gap: 6,
     },
     uploadButtonText: {
         color: '#fff',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 13,
     },
     conditionGrid: {
         flexDirection: 'row',
         justifyContent: 'space-around',
+        gap: 12,
     },
     conditionItem: {
+        flex: 1,
         alignItems: 'center',
+        paddingVertical: 12,
+        backgroundColor: '#F0F9FC',
+        borderRadius: 12,
     },
     conditionLabel: {
         fontSize: 12,
-        color: '#666',
-        marginBottom: 5,
+        color: '#64748B',
+        marginBottom: 6,
+        fontWeight: '500',
     },
     conditionValue: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '700',
+        color: '#0C4A6E',
     },
     vibeScore: {
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 16,
+        paddingVertical: 12,
+        backgroundColor: '#F0F9FC',
+        borderRadius: 12,
     },
     vibeScoreLabel: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 5,
+        fontSize: 13,
+        color: '#64748B',
+        marginBottom: 6,
+        fontWeight: '500',
     },
     vibeScoreValue: {
         fontSize: 32,
-        fontWeight: 'bold',
+        fontWeight: '800',
     },
     vibeTags: {
         flexDirection: 'row',
@@ -713,77 +907,90 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     vibeTag: {
-        backgroundColor: '#E3F2FD',
+        backgroundColor: '#E0F2FE',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#BAE6FD',
     },
     vibeTagText: {
-        color: '#0277BD',
+        color: '#0369A1',
         fontSize: 12,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     ecoGrid: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        marginBottom: 15,
+        marginBottom: 16,
+        gap: 8,
     },
     ecoItem: {
+        flex: 1,
         alignItems: 'center',
+        paddingVertical: 12,
+        backgroundColor: '#F0F9FC',
+        borderRadius: 12,
     },
     ecoValue: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
+        fontWeight: '700',
+        color: '#0C4A6E',
         marginTop: 8,
     },
     ecoLabel: {
         fontSize: 12,
-        color: '#666',
+        color: '#64748B',
         marginTop: 4,
+        fontWeight: '500',
     },
     suggestions: {
-        marginTop: 15,
-        paddingTop: 15,
+        marginTop: 16,
+        paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
+        borderTopColor: '#E2E8F0',
     },
     suggestionsTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#333',
+        color: '#0C4A6E',
         marginBottom: 10,
     },
     suggestionItem: {
-        backgroundColor: '#F0F8FF',
-        padding: 12,
-        borderRadius: 8,
+        backgroundColor: '#F0FDF4',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 10,
         marginBottom: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#10B981',
     },
     suggestionText: {
         fontSize: 13,
-        color: '#333',
+        color: '#1F2937',
         lineHeight: 18,
     },
     descriptionText: {
         fontSize: 15,
-        color: '#666',
+        color: '#475569',
         lineHeight: 22,
     },
     addReviewButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
     },
     addReviewText: {
-        color: '#0288D1',
+        color: '#0891B2',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 13,
     },
     reviewItem: {
-        paddingVertical: 15,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: '#F1F5F9',
     },
     reviewHeader: {
         flexDirection: 'row',
@@ -792,130 +999,165 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     reviewRating: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: '#FF9800',
+        color: '#F59E0B',
     },
     sentimentBadge: {
-        backgroundColor: '#F0F0F0',
+        backgroundColor: '#F0F4F8',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     sentimentText: {
         fontSize: 11,
-        color: '#666',
+        color: '#64748B',
+        fontWeight: '500',
     },
     reviewText: {
         fontSize: 14,
-        color: '#333',
+        color: '#334155',
         lineHeight: 20,
         marginBottom: 8,
     },
     reviewTags: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 5,
+        gap: 6,
     },
     reviewTag: {
         fontSize: 12,
-        color: '#0288D1',
-        backgroundColor: '#E3F2FD',
+        color: '#0369A1',
+        backgroundColor: '#E0F2FE',
         paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        fontWeight: '500',
     },
     noReviews: {
         textAlign: 'center',
-        color: '#999',
+        color: '#94A3B8',
         fontStyle: 'italic',
-        padding: 20,
+        paddingVertical: 20,
+        fontSize: 14,
     },
-    actionButtons: {
+    actionButtonsContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
         flexDirection: 'row',
-        paddingHorizontal: 15,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
         gap: 10,
-        marginBottom: 20,
+        backgroundColor: '#fff',
+        borderTopWidth: 1,
+        borderTopColor: '#E2E8F0',
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        zIndex: 50,
     },
     actionButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0288D1',
-        padding: 15,
+        backgroundColor: '#0891B2',
+        paddingVertical: 14,
         borderRadius: 12,
         gap: 8,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
     },
     actionButtonSecondary: {
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#0288D1',
+        backgroundColor: '#E0F2FE',
+        borderWidth: 1.5,
+        borderColor: '#0891B2',
     },
     actionButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     modalContent: {
         backgroundColor: '#fff',
         borderRadius: 20,
-        padding: 25,
-        width: '85%',
-        maxWidth: 400,
+        padding: 24,
+        width: '88%',
+        maxWidth: 420,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#01579B',
-        marginBottom: 20,
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#0C4A6E',
+        marginBottom: 16,
         textAlign: 'center',
     },
     ratingSelector: {
         flexDirection: 'row',
         justifyContent: 'center',
-        marginBottom: 20,
-        gap: 10,
+        marginBottom: 16,
+        gap: 8,
     },
     reviewInput: {
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: '#E2E8F0',
         borderRadius: 12,
-        padding: 15,
-        fontSize: 16,
+        padding: 12,
+        fontSize: 14,
+        minHeight: 100,
         textAlignVertical: 'top',
-        minHeight: 120,
-        marginBottom: 20,
+        marginBottom: 16,
+        backgroundColor: '#F8FAFC',
     },
     modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         gap: 10,
     },
     modalButton: {
-        backgroundColor: '#0288D1',
-        padding: 15,
-        borderRadius: 12,
+        flex: 1,
+        backgroundColor: '#0891B2',
+        paddingVertical: 12,
+        borderRadius: 10,
         alignItems: 'center',
     },
     modalButtonText: {
         color: '#fff',
-        fontSize: 16,
         fontWeight: '600',
+        fontSize: 14,
     },
     modalCancelButton: {
-        backgroundColor: '#F5F5F5',
-        padding: 15,
-        borderRadius: 12,
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        paddingVertical: 12,
+        borderRadius: 10,
         alignItems: 'center',
+        backgroundColor: '#F8FAFC',
     },
     modalCancelText: {
-        color: '#666',
-        fontSize: 16,
+        color: '#64748B',
         fontWeight: '600',
+        fontSize: 14,
     },
 });

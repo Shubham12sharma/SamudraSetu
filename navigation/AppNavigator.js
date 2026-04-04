@@ -8,19 +8,45 @@ import { AuthContext } from '../context/AuthContext';
 import AssistantScreen from '../screens/AssistantScreen';
 import BeachDetailsScreen from '../screens/BeachDetailScreen';
 import BeachListScreen from '../screens/BeachListScreen';
+import CVVerificationScreen from '../screens/CVVerificationScreen';
 import HomeScreen from '../screens/HomeScreen';
+import LiveWeatherScreen from '../screens/LiveWeatherScreen';
 import LoginScreen from '../screens/LoginScreen';
+import MLPredictionScreen from '../screens/MLPredictionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SentimentAnalysisScreen from '../screens/SentimentAnalysisScreen';
 import UtilitiesScreen from '../screens/UtilitiesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+// ✅ FIXED: Optimized Beach Stack with proper options
 function BeachStack() {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="BeachList" component={BeachListScreen} />
-            <Stack.Screen name="BeachDetails" component={BeachDetailsScreen} />
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: false,
+                animationEnabled: true,
+                cardStyle: { backgroundColor: 'transparent' },
+            }}
+        >
+            <Stack.Screen
+                name="BeachList"
+                component={BeachListScreen}
+                options={{
+                    cardStyle: { backgroundColor: '#F0F9FC' },
+                }}
+            />
+            <Stack.Screen
+                name="BeachDetails"
+                component={BeachDetailsScreen}
+                options={{
+                    cardStyle: { backgroundColor: '#F0F9FC' },
+                    animationEnabled: true,
+                    gestureEnabled: true,
+                    gestureResponseDistance: 135,
+                }}
+            />
         </Stack.Navigator>
     );
 }
@@ -63,23 +89,42 @@ function MainTabs() {
                 headerShown: false,
                 tabBarShowLabel: true,
                 tabBarActiveTintColor: '#0277BD',
-                tabBarInactiveTintColor: 'gray',
+                tabBarInactiveTintColor: '#A0AEC0',
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: '600',
+                    marginTop: 4,
+                },
                 tabBarStyle: {
-                    height: 65,
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
+                    height: 70,
+                    paddingBottom: 8,
+                    paddingTop: 8,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
                     position: 'absolute',
                     backgroundColor: '#fff',
-                    elevation: 5,
+                    elevation: 8,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
                     display: route.name === 'Assistant' ? 'none' : 'flex',
+                    borderTopWidth: 1,
+                    borderTopColor: '#F1F5F9',
                 },
+                // ✅ CRITICAL: Prevent tab bar from interfering with screen scrolling
+                swipeEnabled: true,
+                lazy: true,
             })}
         >
             <Tab.Screen
                 name="Home"
                 component={HomeScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+                    tabBarLabel: 'Home',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="home" size={size} color={color} />
+                    ),
                 }}
             />
 
@@ -87,7 +132,10 @@ function MainTabs() {
                 name="Beaches"
                 component={BeachStack}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Ionicons name="water" size={size} color={color} />,
+                    tabBarLabel: 'Beaches',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="water" size={size} color={color} />
+                    ),
                 }}
             />
 
@@ -117,7 +165,10 @@ function MainTabs() {
                 name="Utilities"
                 component={UtilitiesScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Ionicons name="build" size={size} color={color} />,
+                    tabBarLabel: 'Utilities',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="build" size={size} color={color} />
+                    ),
                 }}
             />
 
@@ -125,7 +176,10 @@ function MainTabs() {
                 name="Profile"
                 component={ProfileScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+                    tabBarLabel: 'Profile',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="person" size={size} color={color} />
+                    ),
                 }}
             />
         </Tab.Navigator>
@@ -151,11 +205,65 @@ export default function AppNavigator() {
     }
 
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: false,
+                // ✅ CRITICAL: These prevent navigation from blocking scrolling
+                animationEnabled: true,
+                gestureEnabled: true,
+                cardOverlayEnabled: false,
+            }}
+        >
             {!user ? (
-                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen
+                    name="Login"
+                    component={LoginScreen}
+                    options={{
+                        animationEnabled: false,
+                    }}
+                />
             ) : (
-                <Stack.Screen name="MainTabs" component={MainTabs} />
+                <>
+                    <Stack.Screen
+                        name="MainTabs"
+                        component={MainTabs}
+                        options={{
+                            animationEnabled: false,
+                        }}
+                    />
+                    <Stack.Screen
+                        name="CVVerification"
+                        component={CVVerificationScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                        }}
+                    />
+                    <Stack.Screen
+                        name="MLPrediction"
+                        component={MLPredictionScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                        }}
+                    />
+                    <Stack.Screen
+                        name="SentimentAnalysis"
+                        component={SentimentAnalysisScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                        }}
+                    />
+                    <Stack.Screen
+                        name="LiveWeather"
+                        component={LiveWeatherScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                        }}
+                    />
+                </>
             )}
         </Stack.Navigator>
     );
@@ -208,5 +316,6 @@ const styles = StyleSheet.create({
         marginTop: 10,
         color: '#0277BD',
         fontSize: 16,
+        fontWeight: '600',
     },
 });

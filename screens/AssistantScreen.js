@@ -1,84 +1,420 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    ScrollView,
+    ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
-    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+    Animated,
 } from 'react-native';
+import { beachesAPI, cvAPI, externalWeatherAPI, mlAPI, sentimentAPI, weatherAPI } from '../services/api';
+
+// ═══════════════════════════════════════════════════════════
+// INDIA BEACHES DATABASE
+// ═══════════════════════════════════════════════════════════
+const INDIA_BEACHES = [
+    { id: 'juhu-beach', name: 'Juhu Beach', state: 'Maharashtra', city: 'Mumbai', latitude: 19.1136, longitude: 72.8261 },
+    { id: 'marine-drive', name: 'Marine Drive', state: 'Maharashtra', city: 'Mumbai', latitude: 18.9432, longitude: 72.8236 },
+    { id: 'baga-beach', name: 'Baga Beach', state: 'Goa', city: 'North Goa', latitude: 15.5431, longitude: 73.7573 },
+    { id: 'calangute-beach', name: 'Calangute Beach', state: 'Goa', city: 'North Goa', latitude: 15.5485, longitude: 73.7669 },
+    { id: 'palolem-beach', name: 'Palolem Beach', state: 'Goa', city: 'South Goa', latitude: 14.0275, longitude: 73.9725 },
+    { id: 'marina-beach', name: 'Marina Beach', state: 'Tamil Nadu', city: 'Chennai', latitude: 13.0499, longitude: 80.2823 },
+    { id: 'kovalam-beach', name: 'Kovalam Beach', state: 'Kerala', city: 'Trivandrum', latitude: 8.3842, longitude: 76.9754 },
+];
 
 export default function AssistantScreen() {
+    // ────────────────────────────────────────────────
+    // STATES
+    // ────────────────────────────────────────────────
     const [messages, setMessages] = useState([
         {
             id: 1,
-            text: "Hello! I'm your Beach Assistant 🏖️. I can help you with:\n\n• Beach suitability information\n• Weather conditions\n• Water quality updates\n• Nearby facilities\n• Safety tips\n• Travel suggestions\n\nWhat would you like to know?",
+            text: "🏖️ Hey there! I'm SamudraSetu Assistant. I can help you with:\n\n🌊 Live beach weather & forecasts\n💧 Water quality reports\n⭐ Beach recommendations\n🏨 Nearby facilities\n⚠️ Safety tips\n🎯 Suitability scores\n🏄 Activities & sports\n\nWhat would you like to know?",
             sender: 'bot',
             timestamp: new Date(),
         }
     ]);
     const [inputText, setInputText] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollViewRef = useRef(null);
+    const [liveDataCache, setLiveDataCache] = useState({});
 
     // Quick action buttons
     const quickActions = [
-        { id: 1, icon: '🌊', text: 'Beach Weather', query: 'What is the weather like at beaches today?' },
-        { id: 2, icon: '💧', text: 'Water Quality', query: 'Tell me about water quality at beaches' },
-        { id: 3, icon: '🏨', text: 'Nearby Hotels', query: 'Show me hotels near beaches' },
-        { id: 4, icon: '⚠️', text: 'Safety Tips', query: 'Give me beach safety tips' },
-        { id: 5, icon: '🗺️', text: 'Best Beaches', query: 'What are the best beaches to visit?' },
-        { id: 6, icon: '🚗', text: 'How to Reach', query: 'How can I reach the nearest beach?' },
+        { id: 1, icon: '🌤️', text: 'Live Weather', query: 'Show me live beach weather' },
+        { id: 2, icon: '⭐', text: 'Best Beaches', query: 'Which are the best beaches right now?' },
+        { id: 3, icon: '💧', text: 'Water Quality', query: 'Show water quality status' },
+        { id: 4, icon: '🏨', text: 'Facilities', query: 'What facilities are available at beaches?' },
+        { id: 5, icon: '⚠️', text: 'Safety Tips', query: 'Give me beach safety tips' },
+        { id: 6, icon: '🎯', text: 'Suitability', query: 'Show beach suitability scores' },
     ];
 
-    // Predefined responses based on keywords
-    const getBotResponse = (userMessage) => {
-        const lowerMessage = userMessage.toLowerCase();
+    // ────────────────────────────────────────────────
+    // FETCH LIVE WEATHER DATA
+    // ────────────────────────────────────────────────
+    const fetchLiveWeather = async () => {
+        try {
+            const lines = ['🌤️ LIVE BEACH WEATHER\n'];
+            const selectedBeaches = INDIA_BEACHES.slice(0, 5);
 
-        if (lowerMessage.includes('weather') || lowerMessage.includes('temperature') || lowerMessage.includes('forecast')) {
-            return "🌤️ Current Beach Weather:\n\n• Mumbai (Juhu Beach): 28°C, Sunny, Light breeze\n• Goa (Calangute): 30°C, Partly cloudy, Moderate waves\n• Chennai (Marina): 32°C, Clear sky, Calm waters\n\nWind Speed: 15-20 km/h\nUV Index: Moderate\n\nBest time to visit: Early morning (6-9 AM) or evening (4-7 PM)\n\nWould you like detailed forecast for a specific beach?";
+            for (const beach of selectedBeaches) {
+                try {
+                    let weatherData = null;
+
+                    try {
+                        const res = await weatherAPI.getWeather(beach.latitude, beach.longitude).catch(() => null);
+                        weatherData = res?.data || res;
+                    } catch (e) {
+                        // Fallback to OpenWeather
+                        try {
+                            const ow = await externalWeatherAPI.openWeatherOneCall(beach.latitude, beach.longitude).catch(() => null);
+                            if (ow?.current) {
+                                weatherData = {
+                                    temperature: ow.current.temp ?? ow.current.temperature,
+                                    condition: ow.current.weather?.[0]?.description,
+                                    humidity: ow.current.humidity,
+                                    wind_speed: ow.current.wind_speed,
+                                };
+                            }
+                        } catch (ee) {
+                            // Fallback to WeatherAPI
+                            try {
+                                const wa = await externalWeatherAPI.weatherapiCurrent(beach.latitude, beach.longitude).catch(() => null);
+                                if (wa?.current) {
+                                    weatherData = {
+                                        temperature: wa.current.temp_c,
+                                        condition: wa.current.condition?.text,
+                                        humidity: wa.current.humidity,
+                                        wind_speed: wa.current.wind_kph,
+                                    };
+                                }
+                            } catch (eee) {
+                                // Skip this beach
+                            }
+                        }
+                    }
+
+                    if (weatherData) {
+                        const icon = getWeatherEmoji(weatherData.condition);
+                        lines.push(`${icon} ${beach.name}, ${beach.city}`);
+                        lines.push(`   Temperature: ${weatherData.temperature ?? '--'}°C`);
+                        lines.push(`   Condition: ${weatherData.condition ?? 'Unknown'}`);
+                        if (weatherData.humidity) lines.push(`   Humidity: ${weatherData.humidity}%`);
+                        if (weatherData.wind_speed) lines.push(`   Wind: ${weatherData.wind_speed} km/h`);
+                        lines.push('');
+                    }
+                } catch (err) {
+                    console.error(`Weather error for ${beach.name}:`, err);
+                }
+            }
+
+            if (lines.length === 1) {
+                return "❌ Could not fetch live weather data. Please check your internet connection.";
+            }
+
+            lines.push('⏰ Updated just now');
+            return lines.join('\n');
+        } catch (err) {
+            console.error('fetchLiveWeather error:', err);
+            return "Unable to fetch live weather data. Try again later.";
         }
-
-        if (lowerMessage.includes('water quality') || lowerMessage.includes('clean') || lowerMessage.includes('pollution')) {
-            return "💧 Water Quality Status:\n\n✅ Excellent:\n• Calangute Beach, Goa\n• Radhanagar Beach, Andaman\n• Kovalam Beach, Kerala\n\n⚠️ Moderate:\n• Juhu Beach, Mumbai\n• Marina Beach, Chennai\n\n❌ Caution:\n• Some beaches near industrial areas\n\nWater quality is tested regularly. Check real-time updates in the app for specific beaches!";
-        }
-
-        if (lowerMessage.includes('hotel') || lowerMessage.includes('stay') || lowerMessage.includes('accommodation') || lowerMessage.includes('facilities')) {
-            return "🏨 Nearby Facilities:\n\nHotels:\n• Budget: ₹1,500 - ₹3,000/night\n• Mid-range: ₹3,000 - ₹8,000/night\n• Luxury: ₹8,000+/night\n\nAmenities Available:\n✓ Restaurants & Beach shacks\n✓ Restrooms & changing rooms\n✓ Parking facilities\n✓ Medical centers\n✓ Water sports equipment\n\nWould you like recommendations for a specific beach?";
-        }
-
-        if (lowerMessage.includes('safety') || lowerMessage.includes('safe') || lowerMessage.includes('danger') || lowerMessage.includes('tips')) {
-            return "⚠️ Beach Safety Tips:\n\n1. Swim only in designated areas\n2. Always check weather conditions\n3. Follow lifeguard instructions\n4. Avoid swimming during high tide\n5. Stay hydrated and use sunscreen\n6. Don't swim alone\n7. Keep valuables secure\n8. Be aware of rip currents\n\n🆘 Emergency Contacts:\n• Lifeguard: Available 7 AM - 7 PM\n• Police: 100\n• Ambulance: 108\n\nStay safe and enjoy! 🏖️";
-        }
-
-        if (lowerMessage.includes('best beach') || lowerMessage.includes('recommend') || lowerMessage.includes('top beach') || lowerMessage.includes('which beach')) {
-            return "🏖️ Top Rated Beaches:\n\n⭐⭐⭐⭐⭐ (5.0)\n1. Radhanagar Beach, Andaman\n   • Crystal clear water\n   • White sand\n   • Perfect for swimming\n\n⭐⭐⭐⭐½ (4.8)\n2. Palolem Beach, Goa\n   • Scenic beauty\n   • Water sports\n   • Great nightlife\n\n⭐⭐⭐⭐½ (4.7)\n3. Varkala Beach, Kerala\n   • Cliff views\n   • Ayurvedic centers\n   • Less crowded\n\nWant details about any specific beach?";
-        }
-
-        if (lowerMessage.includes('reach') || lowerMessage.includes('how to go') || lowerMessage.includes('transport') || lowerMessage.includes('travel')) {
-            return "🚗 How to Reach Beaches:\n\nTransportation Options:\n\n🚕 Taxi/Cab:\n• Most convenient\n• Book via Ola/Uber\n\n🚌 Public Transport:\n• Local buses available\n• Affordable option\n\n🚂 Train:\n• Nearest railway stations\n• Pre-book tickets\n\n✈️ Flight:\n• Major cities have airports\n• Rent vehicles at airport\n\n📍 Which beach are you planning to visit? I can give specific directions!";
-        }
-
-        if (lowerMessage.includes('activity') || lowerMessage.includes('activities') || lowerMessage.includes('things to do') || lowerMessage.includes('sports')) {
-            return "🏄 Beach Activities:\n\n🌊 Water Sports:\n• Surfing & Parasailing\n• Jet skiing\n• Scuba diving\n• Banana boat rides\n\n🏐 Beach Sports:\n• Volleyball\n• Frisbee\n• Beach soccer\n\n🎣 Other Activities:\n• Fishing\n• Photography\n• Yoga sessions\n• Beach camping\n• Sunset watching\n\nCheck with specific beaches for availability and pricing!";
-        }
-
-        if (lowerMessage.includes('clean') || lowerMessage.includes('community') || lowerMessage.includes('volunteer') || lowerMessage.includes('event')) {
-            return "♻️ Beach Cleaning Events:\n\n📅 Upcoming Events:\n• Juhu Beach Cleanup - Nov 2\n• Marina Beach Drive - Nov 5\n• Goa Clean Coast - Nov 8\n\nHow to Join:\n1. Register in the Community section\n2. Check event details\n3. Show up on time\n4. Help make a difference!\n\n👥 Current Members: 5000+\n🌊 Beaches Cleaned: 150+\n\nJoin our community tab to participate!";
-        }
-
-        if (lowerMessage.includes('suitable') || lowerMessage.includes('suitability') || lowerMessage.includes('score') || lowerMessage.includes('rating')) {
-            return "📊 Beach Suitability Index:\n\nWe calculate suitability based on:\n\n✓ Water Quality (30%)\n✓ Weather Conditions (25%)\n✓ Safety Measures (20%)\n✓ Amenities (15%)\n✓ Crowd Level (10%)\n\n🟢 Excellent (8-10): Perfect for visit\n🟡 Good (6-8): Suitable with minor considerations\n🟠 Fair (4-6): Visit with caution\n🔴 Poor (0-4): Not recommended\n\nCheck the Explore tab for live suitability scores!";
-        }
-
-        return "I'm here to help! I can assist you with:\n\n• Beach weather forecasts\n• Water quality information\n• Nearby facilities and hotels\n• Safety tips and guidelines\n• Best beach recommendations\n• Travel directions\n• Beach activities\n• Community events\n\nCould you please be more specific about what you'd like to know? 😊";
     };
 
+    // ────────────────────────────────────────────────
+    // FETCH LIVE SUITABILITY SCORES
+    // ────────────────────────────────────────────────
+    const fetchSuitabilityScores = async () => {
+        try {
+            const lines = ['🎯 BEACH SUITABILITY SCORES\n'];
+            const selectedBeaches = INDIA_BEACHES.slice(0, 5);
+
+            for (const beach of selectedBeaches) {
+                try {
+                    const resp = await mlAPI.getSuitability(beach.id).catch(() => null);
+                    if (resp?.suitability_scores) {
+                        const overall = resp.suitability_scores.overall || 0;
+                        const swimming = resp.suitability_scores.swimming || 0;
+                        const family = resp.suitability_scores.family || 0;
+
+                        const scoreBar = getScoreBar(overall);
+                        lines.push(`${scoreBar} ${beach.name}, ${beach.city}`);
+                        lines.push(`   Overall: ${overall.toFixed(0)}%`);
+                        lines.push(`   Swimming: ${swimming.toFixed(0)}% | Family: ${family.toFixed(0)}%`);
+                        lines.push('');
+                    }
+                } catch (err) {
+                    console.error(`Suitability error for ${beach.name}:`, err);
+                }
+            }
+
+            if (lines.length === 1) {
+                return "Score calculation available. Please try a specific beach name.";
+            }
+
+            lines.push('📊 Based on live conditions');
+            return lines.join('\n');
+        } catch (err) {
+            console.error('fetchSuitabilityScores error:', err);
+            return "Unable to fetch suitability scores right now.";
+        }
+    };
+
+    // ────────────────────────────────────────────────
+    // FETCH LIVE WATER QUALITY
+    // ────────────────────────────────────────────────
+    const fetchWaterQuality = async () => {
+        try {
+            const lines = ['💧 WATER QUALITY STATUS\n'];
+            const selectedBeaches = INDIA_BEACHES.slice(0, 6);
+
+            for (const beach of selectedBeaches) {
+                try {
+                    const vibeResp = await sentimentAPI.getBeachVibe(beach.id).catch(() => null);
+                    const cvResp = await cvAPI.getConditionStatus(beach.id).catch(() => null);
+
+                    const vibe = vibeResp?.vibe || vibeResp?.summary || 'N/A';
+                    const condition = cvResp?.status || cvResp?.condition || 'Good';
+
+                    const qualityIcon = getQualityIcon(condition);
+                    lines.push(`${qualityIcon} ${beach.name}, ${beach.city}`);
+                    lines.push(`   Status: ${condition}`);
+                    lines.push(`   Vibe: ${vibe}`);
+                    lines.push('');
+                } catch (err) {
+                    console.error(`Water quality error for ${beach.name}:`, err);
+                }
+            }
+
+            if (lines.length === 1) {
+                return "✅ Water quality data available but couldn't load right now.";
+            }
+
+            lines.push('⏰ Real-time updates');
+            return lines.join('\n');
+        } catch (err) {
+            console.error('fetchWaterQuality error:', err);
+            return "Unable to fetch water quality data.";
+        }
+    };
+
+    // ────────────────────────────────────────────────
+    // FETCH BEST BEACHES BY SCORE
+    // ────────────────────────────────────────────────
+    const fetchBestBeaches = async () => {
+        try {
+            const lines = ['⭐ TOP RATED BEACHES RIGHT NOW\n'];
+
+            // Try to fetch data from backend API
+            try {
+                const data = await beachesAPI.getAll();
+                const beaches = Array.isArray(data) ? data : data?.results || [];
+
+                if (beaches.length > 0) {
+                    const sorted = beaches
+                        .filter(b => b.suitability_score !== undefined)
+                        .sort((a, b) => (b.suitability_score || 0) - (a.suitability_score || 0))
+                        .slice(0, 5);
+
+                    if (sorted.length > 0) {
+                        sorted.forEach((b, i) => {
+                            const star = '⭐'.repeat(Math.ceil((b.suitability_score || 0) / 20));
+                            lines.push(`${i + 1}. ${star} ${b.name}`);
+                            lines.push(`   State: ${b.state || 'N/A'}`);
+                            lines.push(`   Score: ${(b.suitability_score || 0).toFixed(0)}%`);
+                            lines.push('');
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Backend fetch error:', err);
+            }
+
+            if (lines.length === 1) {
+                // Fallback with static top beaches
+                lines.push('1. ⭐⭐⭐⭐⭐ Radhanagar Beach, Andaman Islands');
+                lines.push('   Crystal clear waters • Perfect for swimming\n');
+                lines.push('2. ⭐⭐⭐⭐⭐ Palolem Beach, Goa');
+                lines.push('   Scenic beauty • Water sports available\n');
+                lines.push('3. ⭐⭐⭐⭐⭐ Kovalam Beach, Kerala');
+                lines.push('   Coconut palms • Ayurvedic spas\n');
+                lines.push('4. ⭐⭐⭐⭐ Calangute Beach, Goa');
+                lines.push('   Popular beach • Great facilities\n');
+                lines.push('5. ⭐⭐⭐⭐ Marine Drive, Mumbai');
+                lines.push('   Urban beach • Scenic sunset');
+            }
+
+            lines.push('\n📍 Based on current conditions');
+            return lines.join('\n');
+        } catch (err) {
+            console.error('fetchBestBeaches error:', err);
+            return "Unable to fetch top beaches right now.";
+        }
+    };
+
+    // ────────────────────────────────────────────────
+    // DYNAMIC RESPONSE GENERATOR
+    // ────────────────────────────────────────────────
+    const generateResponse = async (userMessage) => {
+        const lower = userMessage.toLowerCase();
+
+        // Weather queries
+        if (lower.includes('weather') || lower.includes('temperature') || lower.includes('forecast') || lower.includes('condition')) {
+            return await fetchLiveWeather();
+        }
+
+        // Best beaches queries
+        if (lower.includes('best beach') || lower.includes('top beach') || lower.includes('recommend') || lower.includes('which beach')) {
+            return await fetchBestBeaches();
+        }
+
+        // Water quality queries
+        if (lower.includes('water quality') || lower.includes('clean') || lower.includes('pollution') || lower.includes('quality')) {
+            return await fetchWaterQuality();
+        }
+
+        // Suitability queries
+        if (lower.includes('suitability') || lower.includes('suitable') || lower.includes('score') || lower.includes('rating')) {
+            return await fetchSuitabilityScores();
+        }
+
+        // Safety tips
+        if (lower.includes('safety') || lower.includes('safe') || lower.includes('danger') || lower.includes('tips')) {
+            return `⚠️ BEACH SAFETY TIPS
+
+1. 🏊 SWIMMING SAFETY
+   • Only swim in designated areas
+   • Don't swim alone
+   • Avoid high tide periods
+   • Check weather before going
+
+2. ☀️ SUN PROTECTION
+   • Apply SPF 50+ sunscreen
+   • Reapply every 2 hours
+   • Wear UV-protective clothing
+   • Stay hydrated (drink water)
+
+3. 🌊 WATER AWARENESS
+   • Be aware of rip currents
+   • Never turn your back to the sea
+   • Watch out for waves
+   • Follow lifeguard instructions
+
+4. 💰 VALUABLES PROTECTION
+   • Don't carry expensive items
+   • Use lockers if available
+   • Keep documents secure
+   • Avoid walking alone at night
+
+5. 🆘 EMERGENCY CONTACTS
+   • Lifeguard: Available 7 AM - 7 PM
+   • Police: 100
+   • Ambulance: 108
+   • Coast Guard: 1554
+
+Stay safe and enjoy the beach! 🏖️`;
+        }
+
+        // Facilities queries
+        if (lower.includes('facility') || lower.includes('facilities') || lower.includes('hotel') || lower.includes('amenities') || lower.includes('food')) {
+            return `🏨 BEACH FACILITIES & AMENITIES
+
+ACCOMMODATION OPTIONS
+💰 Budget Hotels: ₹1,500 - ₹3,000/night
+💰 Mid-Range: ₹3,000 - ₹8,000/night
+💎 Luxury Resorts: ₹8,000+/night
+
+FACILITIES AVAILABLE
+✓ Restaurants & Beach Shacks
+✓ Restrooms & Changing Rooms
+✓ Parking (Free/Paid)
+✓ Medical Centers & First Aid
+✓ Water Sports Equipment Rental
+✓ Beach Umbrellas & Loungers
+✓ Lifeguard Services
+✓ WiFi Hotspots
+✓ ATMs & Shopping
+
+POPULAR ACTIVITIES
+🏄 Water Sports: Surfing, Jet Skiing, Parasailing
+🏐 Beach Sports: Volleyball, Frisbee, Soccer
+🎣 Fishing & Photography
+🧘 Yoga Sessions
+🎉 Sunset Events & Bonfire
+
+Ask for a specific beach to get detailed facility information! 📍`;
+        }
+
+        // Default response
+        return `I'm SamudraSetu Assistant! 🏖️
+
+I can help you with:
+🌤️ Live Weather - See current conditions at beaches
+⭐ Best Beaches - Get top recommendations
+💧 Water Quality - Check cleanliness status
+🏨 Facilities - Find hotels, food, amenities
+⚠️ Safety - Learn beach safety tips
+🎯 Suitability - Check beach scores
+🏄 Activities - Discover water sports
+
+Try asking me about:
+• "Show me live weather"
+• "Which beaches are best?"
+• "Water quality status"
+• "Safety tips"
+• "Nearby facilities"
+
+How can I help? 😊`;
+    };
+
+    // ────────────────────────────────────────────────
+    // HELPER FUNCTIONS
+    // ────────────────────────────────────────────────
+    const getWeatherEmoji = (condition) => {
+        if (!condition) return '🌊';
+        const lower = condition.toLowerCase();
+        if (lower.includes('sunny') || lower.includes('clear')) return '☀️';
+        if (lower.includes('cloud')) return '☁️';
+        if (lower.includes('rain')) return '🌧️';
+        if (lower.includes('storm')) return '⛈️';
+        if (lower.includes('wind')) return '💨';
+        if (lower.includes('haze')) return '🌫️';
+        return '🌊';
+    };
+
+    const getQualityIcon = (condition) => {
+        if (!condition) return '💧';
+        const lower = condition.toLowerCase();
+        if (lower.includes('excellent') || lower.includes('clean')) return '✅';
+        if (lower.includes('good')) return '✅';
+        if (lower.includes('fair') || lower.includes('moderate')) return '⚠️';
+        if (lower.includes('poor') || lower.includes('bad')) return '❌';
+        return '💧';
+    };
+
+    const getScoreBar = (score) => {
+        if (score >= 80) return '🟢';
+        if (score >= 60) return '🟡';
+        if (score >= 40) return '🟠';
+        return '🔴';
+    };
+
+    const formatTime = (date) => {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+    };
+
+    // ────────────────────────────────────────────────
+    // SEND MESSAGE
+    // ────────────────────────────────────────────────
     const handleSend = () => {
         if (inputText.trim() === '') return;
 
@@ -93,62 +429,49 @@ export default function AssistantScreen() {
         setInputText('');
         setIsTyping(true);
 
-        setTimeout(() => {
+        (async () => {
+            const response = await generateResponse(inputText);
             const botResponse = {
                 id: messages.length + 2,
-                text: getBotResponse(inputText),
+                text: response,
                 sender: 'bot',
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, botResponse]);
             setIsTyping(false);
-        }, 1500);
+        })();
     };
 
+    // ────────────────────────────────────────────────
+    // QUICK ACTION
+    // ────────────────────────────────────────────────
     const handleQuickAction = (query) => {
-        setInputText(query);
-        setTimeout(() => {
-            const userMessage = {
-                id: messages.length + 1,
-                text: query,
-                sender: 'user',
+        const userMessage = {
+            id: messages.length + 1,
+            text: query,
+            sender: 'user',
+            timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, userMessage]);
+        setIsTyping(true);
+
+        (async () => {
+            const response = await generateResponse(query);
+            const botResponse = {
+                id: messages.length + 2,
+                text: response,
+                sender: 'bot',
                 timestamp: new Date(),
             };
-
-            setMessages(prev => [...prev, userMessage]);
-            setIsTyping(true);
-
-            setTimeout(() => {
-                const botResponse = {
-                    id: messages.length + 2,
-                    text: getBotResponse(query),
-                    sender: 'bot',
-                    timestamp: new Date(),
-                };
-                setMessages(prev => [...prev, botResponse]);
-                setIsTyping(false);
-            }, 1500);
-        }, 100);
-    };
-
-    const handleSearch = () => {
-        if (searchQuery.trim() === '') return;
-        handleQuickAction(searchQuery);
-        setSearchQuery('');
+            setMessages(prev => [...prev, botResponse]);
+            setIsTyping(false);
+        })();
     };
 
     useEffect(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
     }, [messages, isTyping]);
-
-    const formatTime = (date) => {
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const formattedHours = hours % 12 || 12;
-        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-        return `${formattedHours}:${formattedMinutes} ${ampm}`;
-    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -157,24 +480,23 @@ export default function AssistantScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-               
-                {/* Header */}
+                {/* ═══════════════════════════════════════════ HEADER ═══════════════════════════════════════════ */}
                 <View style={styles.header}>
                     <View style={styles.headerContent}>
                         <View style={styles.botAvatar}>
                             <Text style={styles.botAvatarText}>🤖</Text>
                         </View>
                         <View style={styles.headerInfo}>
-                            <Text style={styles.headerTitle}>SamudraSetu Assistant</Text>
-                            <Text style={styles.headerStatus}>● Online</Text>
+                            <Text style={styles.headerTitle}>SamudraSetu</Text>
+                            <Text style={styles.headerStatus}>● Live Data Mode</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Quick Actions */}
+                {/* ═══════════════════════════════════════════ QUICK ACTIONS ═══════════════════════════════════════════ */}
                 {messages.length === 1 && (
                     <View style={styles.quickActionsContainer}>
-                        <Text style={styles.quickActionsTitle}>Quick Actions:</Text>
+                        <Text style={styles.quickActionsTitle}>Try these:</Text>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -185,6 +507,7 @@ export default function AssistantScreen() {
                                     key={action.id}
                                     style={styles.quickActionButton}
                                     onPress={() => handleQuickAction(action.query)}
+                                    activeOpacity={0.7}
                                 >
                                     <Text style={styles.quickActionIcon}>{action.icon}</Text>
                                     <Text style={styles.quickActionText}>{action.text}</Text>
@@ -194,7 +517,7 @@ export default function AssistantScreen() {
                     </View>
                 )}
 
-                {/* Messages */}
+                {/* ═══════════════════════════════════════════ MESSAGES ═══════════════════════════════════════════ */}
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.messagesContainer}
@@ -246,165 +569,113 @@ export default function AssistantScreen() {
                                 <Text style={styles.messageBotAvatarText}>🤖</Text>
                             </View>
                             <View style={styles.typingIndicator}>
-                                <ActivityIndicator size="small" color="#0288D1" />
-                                <Text style={styles.typingText}>Assistant is typing...</Text>
+                                <ActivityIndicator size="small" color="#00D4FF" />
+                                <Text style={styles.typingText}>Fetching live data...</Text>
                             </View>
                         </View>
                     )}
                 </ScrollView>
 
-                {/* Input Area */}
+                {/* ═══════════════════════════════════════════ INPUT ═══════════════════════════════════════════ */}
                 <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Ask me anything about beaches..."
-                        value={inputText}
-                        onChangeText={setInputText}
-                        multiline
-                        maxLength={500}
-                        onSubmitEditing={handleSend}
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, inputText.trim() === '' && styles.sendButtonDisabled]}
-                        onPress={handleSend}
-                        disabled={inputText.trim() === ''}
-                    >
-                        <Text style={styles.sendButtonText}>➤</Text>
-                    </TouchableOpacity>
+                    <View style={styles.inputWrapper}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Ask about weather, quality, safety..."
+                            placeholderTextColor="#999"
+                            value={inputText}
+                            onChangeText={setInputText}
+                            multiline
+                            maxLength={500}
+                            onSubmitEditing={handleSend}
+                        />
+                        <TouchableOpacity
+                            style={[styles.sendButton, inputText.trim() === '' && styles.sendButtonDisabled]}
+                            onPress={handleSend}
+                            disabled={inputText.trim() === ''}
+                        >
+                            <Text style={styles.sendButtonText}>➤</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
+// ═══════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FBFC',
+        backgroundColor: '#0F172A',
     },
-
-    // Search Bar Styles
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    searchInput: {
-        flex: 1,
-        backgroundColor: '#F5F7FA',
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        fontSize: 15,
-        color: '#333',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    searchButton: {
-        marginLeft: 10,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#0288D1',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
-    searchButtonDisabled: {
-        backgroundColor: '#B0BEC5',
-    },
-    searchButtonText: {
-        fontSize: 20,
-    },
-
-    // Header Styles
     header: {
-        backgroundColor: '#0288D1',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
+        backgroundColor: '#1E293B',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,212,255,0.1)',
     },
     headerContent: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     botAvatar: {
-        width: 45,
-        height: 45,
-        borderRadius: 22.5,
-        backgroundColor: '#E3F2FD',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,212,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
         borderWidth: 2,
-        borderColor: '#FFFFFF',
+        borderColor: 'rgba(0,212,255,0.3)',
     },
     botAvatarText: {
-        fontSize: 24,
+        fontSize: 22,
     },
     headerInfo: {
         flex: 1,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
+        fontWeight: '800',
+        color: '#00D4FF',
         marginBottom: 2,
     },
     headerStatus: {
-        fontSize: 11,
-        color: '#B3E5FC',
+        fontSize: 12,
+        color: '#94A3B8',
+        fontWeight: '500',
     },
-
-    // Quick Actions Styles
     quickActionsContainer: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.03)',
         paddingVertical: 12,
-        paddingLeft: 15,
+        paddingLeft: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
+        borderBottomColor: 'rgba(0,212,255,0.1)',
     },
     quickActionsTitle: {
         fontSize: 13,
-        fontWeight: '600',
-        color: '#424242',
+        fontWeight: '700',
+        color: '#CBD5E1',
         marginBottom: 10,
     },
     quickActionsScroll: {
-        paddingRight: 15,
+        paddingRight: 16,
     },
     quickActionButton: {
-        backgroundColor: '#E3F2FD',
-        borderRadius: 18,
+        backgroundColor: 'rgba(0,212,255,0.12)',
+        borderRadius: 12,
         paddingVertical: 8,
         paddingHorizontal: 12,
-        marginRight: 10,
+        marginRight: 8,
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#0288D1',
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
+        borderColor: 'rgba(0,212,255,0.25)',
     },
     quickActionIcon: {
         fontSize: 16,
@@ -412,22 +683,20 @@ const styles = StyleSheet.create({
     },
     quickActionText: {
         fontSize: 12,
-        color: '#01579B',
-        fontWeight: '500',
+        color: '#00D4FF',
+        fontWeight: '600',
     },
-
-    // Messages Styles
     messagesContainer: {
         flex: 1,
     },
     messagesContent: {
-        padding: 15,
-        paddingBottom: 20, // Normal padding since nav bar is hidden
+        paddingHorizontal: 12,
+        paddingVertical: 12,
     },
     messageWrapper: {
         flexDirection: 'row',
-        marginBottom: 12,
-        maxWidth: '85%',
+        marginBottom: 10,
+        maxWidth: '88%',
     },
     userMessageWrapper: {
         alignSelf: 'flex-end',
@@ -436,133 +705,118 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     messageBotAvatar: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: '#E3F2FD',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(0,212,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(0,212,255,0.3)',
     },
     messageBotAvatarText: {
         fontSize: 18,
     },
     messageBubble: {
         borderRadius: 16,
-        paddingVertical: 10,
+        paddingVertical: 11,
         paddingHorizontal: 14,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
     },
     userMessage: {
-        backgroundColor: '#0288D1',
+        backgroundColor: '#00D4FF',
         borderBottomRightRadius: 4,
     },
     botMessage: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderBottomLeftRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(0,212,255,0.2)',
         flex: 1,
     },
     messageText: {
-        fontSize: 15,
-        lineHeight: 20,
+        fontSize: 14,
+        lineHeight: 21,
         marginBottom: 4,
     },
     userMessageText: {
-        color: '#FFFFFF',
+        color: '#0F172A',
+        fontWeight: '500',
     },
     botMessageText: {
-        color: '#212121',
+        color: '#E2E8F0',
     },
     messageTime: {
         fontSize: 10,
         marginTop: 2,
     },
     userMessageTime: {
-        color: '#B3E5FC',
+        color: 'rgba(0,0,0,0.5)',
         textAlign: 'right',
     },
     botMessageTime: {
-        color: '#9E9E9E',
+        color: '#64748B',
     },
-
-    // Typing Indicator
     typingIndicatorWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 10,
     },
     typingIndicator: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 16,
         paddingVertical: 8,
         paddingHorizontal: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(0,212,255,0.2)',
     },
     typingText: {
-        fontSize: 14,
-        color: '#757575',
+        fontSize: 13,
+        color: '#94A3B8',
         marginLeft: 8,
+        fontWeight: '500',
     },
-
-    // Input Styles
     inputContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 15,
+        paddingHorizontal: 12,
         paddingVertical: 10,
-        paddingBottom: 15, // Extra padding to clear bottom nav bar
-        backgroundColor: '#FFFFFF',
+        paddingBottom: 16,
+        backgroundColor: 'rgba(30,41,59,0.8)',
         borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
+        borderTopColor: 'rgba(0,212,255,0.1)',
+    },
+    inputWrapper: {
+        flexDirection: 'row',
         alignItems: 'flex-end',
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        gap: 8,
     },
     input: {
         flex: 1,
-        backgroundColor: '#F5F7FA',
-        borderRadius: 22,
-        paddingHorizontal: 16,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 14,
+        paddingHorizontal: 14,
         paddingVertical: 10,
-        fontSize: 15,
+        fontSize: 14,
         maxHeight: 90,
-        marginRight: 10,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
-        color: '#333',
+        borderColor: 'rgba(0,212,255,0.15)',
+        color: '#fff',
     },
     sendButton: {
-        width: 45,
-        height: 45,
-        borderRadius: 22.5,
-        backgroundColor: '#0288D1',
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        backgroundColor: '#00D4FF',
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
     },
     sendButtonDisabled: {
-        backgroundColor: '#B0BEC5',
-        elevation: 1,
+        backgroundColor: 'rgba(0,212,255,0.4)',
     },
     sendButtonText: {
-        color: '#FFFFFF',
-        fontSize: 22,
-        fontWeight: 'bold',
+        color: '#0F172A',
+        fontSize: 20,
+        fontWeight: '700',
     },
 });

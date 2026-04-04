@@ -4,6 +4,25 @@ from rest_framework import status
 from .impact_calculator import calculator
 from beaches.models import Beach
 
+# Helper to resolve beach id strings or ObjectId
+try:
+    from bson.objectid import ObjectId
+except Exception:
+    ObjectId = None
+
+
+def _get_beach_by_id(beach_id):
+    """Resolve beach by _id accepting either string or ObjectId"""
+    try:
+        return Beach.objects.get(_id=beach_id)
+    except Beach.DoesNotExist:
+        if ObjectId is not None:
+            try:
+                return Beach.objects.get(_id=ObjectId(beach_id))
+            except Exception:
+                raise Beach.DoesNotExist()
+        raise
+
 
 @api_view(['POST'])
 def calculate_impact(request):
@@ -26,7 +45,7 @@ def calculate_impact(request):
         )
     
     try:
-        beach = Beach.objects.get(_id=beach_id)
+        beach = _get_beach_by_id(beach_id)
     except Beach.DoesNotExist:
         return Response(
             {'error': 'Beach not found'},
@@ -71,7 +90,7 @@ def compare_transport_modes(request):
         )
     
     try:
-        beach = Beach.objects.get(_id=beach_id)
+        beach = _get_beach_by_id(beach_id)
     except Beach.DoesNotExist:
         return Response(
             {'error': 'Beach not found'},
@@ -115,8 +134,10 @@ def calculate_itinerary_impact(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    beaches = []
     try:
-        beaches = [Beach.objects.get(_id=bid) for bid in beach_ids]
+        for bid in beach_ids:
+            beaches.append(_get_beach_by_id(bid))
     except Beach.DoesNotExist:
         return Response(
             {'error': 'One or more beaches not found'},

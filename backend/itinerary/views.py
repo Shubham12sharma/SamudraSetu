@@ -3,6 +3,23 @@ from rest_framework.response import Response
 from rest_framework import status
 from .graph_builder import itinerary_builder
 from beaches.models import Beach
+try:
+    from bson.objectid import ObjectId
+except Exception:
+    ObjectId = None
+
+
+def _get_beach_by_id(beach_id):
+    try:
+        return Beach.objects.get(_id=beach_id)
+    except Beach.DoesNotExist:
+        if ObjectId is not None:
+            try:
+                return Beach.objects.get(_id=ObjectId(beach_id))
+            except Exception:
+                raise Beach.DoesNotExist()
+        raise
+from rest_framework.exceptions import NotFound
 
 
 @api_view(['POST'])
@@ -21,13 +38,8 @@ def build_itinerary(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    try:
-        start_beach = Beach.objects.get(_id=start_beach_id)
-    except Beach.DoesNotExist:
-        return Response(
-            {'error': 'Start beach not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+
+   
     
     # Build graph with all beaches
     all_beaches = Beach.objects.all()
@@ -51,7 +63,7 @@ def build_itinerary(request):
     
     for i, node_id in enumerate(optimized_route):
         try:
-            beach = Beach.objects.get(_id=node_id)
+            beach = _get_beach_by_id(node_id)
             beach_data = {
                 'beach_id': str(beach._id),
                 'name': beach.name,
@@ -123,7 +135,7 @@ def optimize_existing_route(request):
     
     for i, node_id in enumerate(optimized_route):
         try:
-            beach = Beach.objects.get(_id=node_id)
+            beach = _get_beach_by_id(node_id)
             beach_data = {
                 'beach_id': str(beach._id),
                 'name': beach.name,
@@ -188,7 +200,7 @@ def get_shortest_path(request):
     
     for i, node_id in enumerate(path):
         try:
-            beach = Beach.objects.get(_id=node_id)
+            beach = _get_beach_by_id(node_id)
             beach_data = {
                 'beach_id': str(beach._id),
                 'name': beach.name,

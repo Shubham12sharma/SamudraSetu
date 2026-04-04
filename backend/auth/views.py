@@ -6,52 +6,47 @@ from .serializers import UserSerializer, UserPublicSerializer, LoginSerializer
 import hashlib
 
 
-@api_view(['POST'])
+@api_view(['POST', 'OPTIONS'])
 def register(request):
-    """User registration"""
+    """User registration with comprehensive validation"""
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
-        # Check if user already exists
-        email = serializer.validated_data.get('email')
-        if User.objects.filter(email=email).exists():
-            return Response(
-                {'error': 'User with this email already exists'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
         try:
             user = serializer.save()
+            
+            # Generate avatar URL
+            name = user.name
+            email = user.email
+            avatar_hash = hashlib.md5(email.encode()).hexdigest()
+            user.avatar_url = f'https://ui-avatars.com/api/?name={name}&size=200&background=0288D1&color=fff'
+            user.save()
+            
+            user_data = UserPublicSerializer(user).data
+            return Response({
+                'message': 'Registration successful',
+                'user': user_data
+            }, status=status.HTTP_201_CREATED)
+        
         except Exception as exc:
-            # Development debug: log serializer data and exception details
-            print('Register serializer data type:', type(serializer.data))
-            print('Register serializer data repr:', repr(serializer.data))
-            print('Exception during serializer.save():', repr(exc))
-            return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        # Generate avatar URL
-        name = user.name
-        avatar_hash = hashlib.md5(email.encode()).hexdigest()
-        user.avatar_url = f'https://ui-avatars.com/api/?name={name}&size=200&background=0288D1&color=fff'
-        user.save()
-        
-        user_data = UserPublicSerializer(user).data
-        return Response({
-            'message': 'Registration successful',
-            'user': user_data
-        }, status=status.HTTP_201_CREATED)
+            # This handles any unexpected database or system errors
+            return Response(
+                {'error': 'An error occurred during registration. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
-    # Log serializer errors for debugging
-    try:
-        print('Register request.data:', request.data)
-        print('Register serializer.errors:', serializer.errors)
-    except Exception:
-        pass
+    # Return validation errors
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'OPTIONS'])
 def login(request):
-    """User login"""
+    """User login with comprehensive validation"""
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -69,13 +64,18 @@ def login(request):
             })
         else:
             return Response(
-                {'error': 'Invalid credentials'},
+                {'error': 'Invalid email or password'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
     except User.DoesNotExist:
         return Response(
-            {'error': 'Invalid credentials'},
+            {'error': 'Invalid email or password'},
             status=status.HTTP_401_UNAUTHORIZED
+        )
+    except Exception as exc:
+        return Response(
+            {'error': 'An error occurred during login. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 

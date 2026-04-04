@@ -7,6 +7,10 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+try:
+    import certifi
+except Exception:
+    certifi = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +34,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_filters',
-    'auth',
+    # register local auth AppConfig (avoids label clash with django.contrib.auth)
+    'auth.apps.AuthConfig',
     'beaches',
     'ml_models',
     'cv_processing',
@@ -73,16 +78,30 @@ TEMPLATES = [
 WSGI_APPLICATION = 'samudrasetu_backend.wsgi.application'
 
 # Database - MongoDB
+# Database - MongoDB Atlas
 DATABASES = {
     'default': {
         'ENGINE': 'djongo',
         'NAME': os.getenv('MONGODB_NAME', 'samudrasetu'),
         'ENFORCE_SCHEMA': False,
         'CLIENT': {
-            'host': os.getenv('MONGODB_HOST', 'mongodb://localhost:27017/'),
-        }
+            'host': os.getenv('MONGODB_HOST', 'mongodb+srv://<username>:<password>@cluster0.wbvqrl3.mongodb.net/samudrasetu?retryWrites=true&w=majority'),
+            'tls': True,  # TLS enabled
+            'tlsAllowInvalidCertificates': False,  # only for dev, otherwise False
+            'tlsCAFile': certifi.where() if certifi else None,  # ensures server certs are verified
+            'serverSelectionTimeoutMS': 5000,  # optional: fail faster if server unreachable
+        },
     }
 }
+
+# If connecting to MongoDB Atlas, provide TLS / CA file so PyMongo can verify server certs.
+if os.getenv('MONGODB_HOST', '').startswith('mongodb+srv') or os.getenv('USE_MONGODB_TLS', '1') == '1':
+    client_opts = DATABASES['default'].get('CLIENT', {})
+    # enable TLS and set CA file if certifi is available
+    client_opts.setdefault('tls', True)
+    if certifi:
+        client_opts.setdefault('tlsCAFile', certifi.where())
+    DATABASES['default']['CLIENT'] = client_opts
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

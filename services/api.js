@@ -155,7 +155,7 @@ export const syncOfflineQueue = async (userId) => {
 
     if (response.data.results) {
       const { synced, conflicts, errors } = response.data.summary;
-      
+
       // Clear queue if sync successful
       if (errors === 0) {
         await clearOfflineQueue();
@@ -386,13 +386,13 @@ export const itineraryAPI = {
 
 // Sentiment API
 export const sentimentAPI = {
-  analyzeReview: async (reviewText, beachId, userId, rating) => {
+  analyzeReview: async (data) => {
     try {
       const response = await api.post('/sentiment/analyze/', {
-        review_text: reviewText,
-        beach_id: beachId,
-        user_id: userId,
-        rating,
+        review_text: data.review_text,
+        beach_id: data.beach_id,
+        user_id: data.user_id || 'anonymous',
+        rating: data.rating,
       });
       return response.data;
     } catch (error) {
@@ -401,13 +401,8 @@ export const sentimentAPI = {
         await addToOfflineQueue({
           operation_type: 'create_review',
           entity_type: 'review',
-          entity_id: beachId,
-          data: {
-            beach_id: beachId,
-            user_id: userId,
-            rating,
-            review_text: reviewText,
-          },
+          entity_id: data.beach_id,
+          data: data,
         });
         throw new Error('Review queued for offline sync');
       }

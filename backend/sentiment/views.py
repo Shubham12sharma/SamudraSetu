@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from .sentiment_analyzer import analyzer
 from beaches.models import Beach, Review
+from bson.objectid import ObjectId
+from rest_framework.exceptions import NotFound
 from django.utils import timezone
 
 
@@ -26,9 +28,17 @@ def analyze_review(request):
     # If beach_id provided, save/update review
     if beach_id:
         try:
+            # try string ID first
             beach = Beach.objects.get(_id=beach_id)
             
-            # Create or update review (in real app, you'd have user authentication)
+        except Beach.DoesNotExist:
+            # try ObjectId
+            try:
+                beach = Beach.objects.get(_id=ObjectId(beach_id))
+            except Exception:
+                return Response({'error': 'Beach not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Create or update review (in real app, you'd have user authentication)
             user_id = request.data.get('user_id', 'anonymous')
             rating = request.data.get('rating', 3)
             
@@ -49,11 +59,7 @@ def analyze_review(request):
                 'analysis': analysis,
                 'beach_updated': True
             })
-        except Beach.DoesNotExist:
-            return Response(
-                {'error': 'Beach not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        
     
     return Response({
         'analysis': analysis
