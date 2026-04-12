@@ -124,7 +124,7 @@
                         <View style={styles.scoreContainer}>
                             <Text style={styles.scoreLabel}>Suitability</Text>
                             <Text style={[styles.scoreValue, { color: suitabilityColor }]}>
-                                {suitabilityScore.toFixed(0)}%
+                                {(suitabilityScore ?? 0).toFixed(0)}%
                             </Text>
                         </View>
                     </View>

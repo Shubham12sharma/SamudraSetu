@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/sync/', include('sync.urls')),
     path('api/eco/', include('eco_impact.urls')),
     path('api/weather/', include('weather.urls')),
+    path('api/community/', include('community.urls')),
 ]
 
 if settings.DEBUG:

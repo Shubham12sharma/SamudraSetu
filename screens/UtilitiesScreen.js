@@ -8,6 +8,7 @@ import {
     Platform,
     ScrollView,
     Share,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
@@ -46,39 +47,55 @@ const OVERPASS_ENDPOINTS = [
 const fetchOverpassData = async (query) => {
     for (const base of OVERPASS_ENDPOINTS) {
         try {
-            const url = `${base}?data=${encodeURIComponent(query)}`;
-            const response = await fetch(url);
+            // Using POST for reliability and larger query strings
+            const response = await fetch(base, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `data=${encodeURIComponent(query)}`,
+            });
             if (response.ok) return await response.json();
-            if (response.status === 429 || response.status === 504) continue; // Try next fallback mirror
+            if (response.status === 429 || response.status === 504) continue; // Try next mirror
         } catch (error) { console.warn(`Fetch error on ${base}:`, error); }
     }
-    return { elements: [] };
+    return null; // Return null to indicate all mirrors failed
 };
 
-const fetchNearbyFacilitiesWithExpansion = async (latitude, longitude, tagsToQuery = [], tagsToFilter = []) => {
+const fetchNearbyFacilitiesWithExpansion = async (latitude, longitude, tagsToQuery = []) => {
     let fetchedPlaces = [];
-    const amenityRegex = `^(${tagsToQuery.join('|')})$`;
     if (!tagsToQuery || tagsToQuery.length === 0) return [];
     
-    // Fetch a fixed 2.5km radius
-    const radiusMeters = 2500; 
-    const query = `[out:json][timeout:15];(node["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`;
+    // Case-insensitive regex matching for tags
+    const valueRegex = `^(${tagsToQuery.join('|')})$`;
+    const radiusMeters = 10000; 
+
+    // Use 'nwr' shorthand for node, way, relation and use [~"key"~"value",i] for case-insensitive
+    const query = `[out:json][timeout:30];(
+        nwr["amenity"~"${valueRegex}",i](around:${radiusMeters},${latitude},${longitude});
+        nwr["tourism"~"${valueRegex}",i](around:${radiusMeters},${latitude},${longitude});
+        nwr["shop"~"${valueRegex}",i](around:${radiusMeters},${latitude},${longitude});
+        nwr["healthcare"~"${valueRegex}",i](around:${radiusMeters},${latitude},${longitude});
+    );out center;`;
     
     const data = await fetchOverpassData(query);
-    if (!data.elements) return [];
+    if (!data || !data.elements) return null; // Indicate API error
 
     fetchedPlaces = data.elements.map((element) => {
         const tags = element.tags || {};
         const loc = element.center || { lat: element.lat, lon: element.lon };
-        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
-        const typeRaw = tags.amenity || 'unknown';
-        if (tagsToFilter.length > 0 && !tagsToFilter.includes(typeRaw)) return null;
+        if (!loc || typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        
+        const typeRaw = tags.amenity || tags.tourism || tags.shop || tags.healthcare || 'unknown';
         const addr = [tags['addr:housenumber'], tags['addr:street'], tags['addr:suburb'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ').trim() || 'Address not available';
         
         return {
-            id: String(element.id), name: tags.name || tags.amenity || 'Unnamed Place',
-            typeRaw: typeRaw, typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-            address: addr, lat: loc.lat, lon: loc.lon, phone: tags.phone || tags['contact:phone'] || null,
+            id: String(element.id), 
+            name: tags.name || typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unnamed Place',
+            typeRaw: typeRaw.toLowerCase(), 
+            typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            address: addr, 
+            lat: loc.lat, 
+            lon: loc.lon, 
+            phone: tags.phone || tags['contact:phone'] || null,
             distance: getDistance(latitude, longitude, loc.lat, loc.lon)
         };
     }).filter(p => p && p.name !== 'Unnamed Place');
@@ -95,7 +112,7 @@ const fetchNearbyDestinationsWithExpansion = async (latitude, longitude, tagsQue
     const query = `[out:json][timeout:60];(${filledQuery});out center;`;
     
     const data = await fetchOverpassData(query);
-    if (!data.elements) return [];
+    if (!data || !data.elements) return [];
 
     fetchedDestinations = data.elements.map((element) => {
         const tags = element.tags || {};
@@ -124,7 +141,7 @@ const fetchNearbyEmergencyServices = async (latitude, longitude) => {
     const query = `[out:json][timeout:45];(node["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`;
     
     const data = await fetchOverpassData(query);
-    if (!data.elements) return [];
+    if (!data || !data.elements) return [];
 
     fetchedServices = data.elements.map((element) => {
         const tags = element.tags || {};
@@ -142,6 +159,33 @@ const fetchNearbyEmergencyServices = async (latitude, longitude) => {
     fetchedServices.sort((a, b) => a.distance - b.distance);
     return fetchedServices;
 };
+
+const fetchBeachesByQuery = async (latitude, longitude, nameQuery = '') => {
+    const radiusMeters = nameQuery ? 100000 : 50000; 
+    let query = nameQuery 
+        ? `[out:json][timeout:30];(node["natural"="beach"]["name"~"${nameQuery}",i](around:${radiusMeters},${latitude},${longitude});way["natural"="beach"]["name"~"${nameQuery}",i](around:${radiusMeters},${latitude},${longitude});relation["natural"="beach"]["name"~"${nameQuery}",i](around:${radiusMeters},${latitude},${longitude}););out center;`
+        : `[out:json][timeout:30];(node["natural"="beach"](around:${radiusMeters},${latitude},${longitude});way["natural"="beach"](around:${radiusMeters},${latitude},${longitude});relation["natural"="beach"](around:${radiusMeters},${latitude},${longitude}););out center;`;
+    
+    const data = await fetchOverpassData(query);
+    if (!data || !data.elements) return [];
+
+    return data.elements.map((el) => {
+        const tags = el.tags || {};
+        const loc = el.center || { lat: el.lat, lon: el.lon };
+        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        return {
+            id: String(el.id),
+            name: tags.name || `Beach ID ${el.id}`,
+            state: tags['addr:state'] || tags['is_in:state'] || 'Coastal',
+            latitude: loc.lat,
+            longitude: loc.lon,
+            distance: getDistance(latitude, longitude, loc.lat, loc.lon),
+            description: tags.description || `Beach located in ${tags['addr:city'] || tags['addr:suburb'] || 'the area'}.`,
+            isOverpass: true
+        };
+    }).filter(b => b).sort((a, b) => a.distance - b.distance);
+};
+
 
 // Persistent global cache that survives component unmounts! 
 // This makes sure the data stays everywhere in the app.
@@ -186,6 +230,7 @@ const UtilitiesScreen = () => {
     const [recommendedPlaces, setRecommendedPlaces] = useState([]);
     const [recommendedLoading, setRecommendedLoading] = useState(false);
     const [recommendedErrorMsg, setRecommendedErrorMsg] = useState(null);
+    const [refreshCount, setRefreshCount] = useState(0);
     // Beaches search state (backend data)
     const [beachesData, setBeachesData] = useState([]);
     const [beachesLoading, setBeachesLoading] = useState(false);
@@ -232,176 +277,224 @@ const UtilitiesScreen = () => {
             let fetchedCoords = cache.current.location;
             let currentCountry = cache.current.country;
 
-            // 1. Fetch Location ONLY if we don't have it
             try {
+                // 1. Fetch Location ONLY if we don't have it
                 if (!fetchedCoords) {
                     setLocationLoading(true); setLocationErrorMsg(null);
                     setRecommendedErrorMsg(null); setNationalContactsError(null);
                 
-                try { 
-                    let { status } = await Location.requestForegroundPermissionsAsync(); 
-                    if (status !== 'granted') throw new Error('Permission denied.');
-                } catch (e) { 
-                    const msg = 'Location perm error'; setLocationErrorMsg(msg); 
-                    setRecommendedErrorMsg(msg); setNationalContactsError(msg); 
-                    setLocationLoading(false); return; 
-                }
+                    try { 
+                        let { status } = await Location.requestForegroundPermissionsAsync(); 
+                        if (status !== 'granted') throw new Error('Permission denied.');
+                    } catch (e) { 
+                        const msg = 'Location perm error'; setLocationErrorMsg(msg); 
+                        setRecommendedErrorMsg(msg); setNationalContactsError(msg); 
+                        setLocationLoading(false); return; 
+                    }
 
-                try {
-                    console.log("Getting fast position...");
-                    let currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 5000 });
-                    fetchedCoords = currentLoc.coords;
-                    cache.current.location = fetchedCoords;
-                    setLocation(fetchedCoords);
-                } catch (e) { console.warn("GPS error", e); setLocationErrorMsg('No coords.'); setLocationLoading(false); return; }
-
-                if (fetchedCoords) {
                     try {
-                        let addresses = await Location.reverseGeocodeAsync(fetchedCoords);
-                        if (addresses && addresses.length > 0) {
-                            currentCountry = addresses[0].country;
-                            cache.current.country = currentCountry;
-                            setLocationCountry(currentCountry);
-                        }
-                    } catch (e) {}
-                }
-                setLocationLoading(false);
-            } else {
-                // Instantly restore from cache
-                setLocation(fetchedCoords);
-                setLocationCountry(currentCountry);
-            }
-
-            if (!fetchedCoords) return;
-
-            // --- Background Prefetching ---
-            // If this is our first time getting location, secretly fetch all major tabs in the background!
-            if (!cache.current.prefetched) {
-                cache.current.prefetched = true;
-                console.log("Starting silent background prefetch of all Utilities...");
-                
-                if (!cache.current.facilities['All']) {
-                    const qTags = getAllFacilityApiTagsForQuery();
-                    fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags, [])
-                        .then(d => { cache.current.facilities['All'] = d; if (page === 'facilities' && activeFacilityFilter === 'All') setFacilitiesData(d); setFacilitiesLoading(false); })
-                        .catch(e => console.log('Prefetch err facilities', e));
-                }
-                if (!cache.current.routes['All']) {
-                    const qTemplate = routeFilterCategories['All']?.tagsQuery;
-                    if (qTemplate) {
-                        fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate)
-                            .then(d => { cache.current.routes['All'] = d; if (page === 'routes' && activeRouteFilter === 'All') setRoutesData(d); setRoutesLoading(false); })
-                            .catch(e => console.log('Prefetch err routes', e));
-                    }
-                }
-                if (!cache.current.emergency) {
-                    fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude)
-                        .then(d => { cache.current.emergency = d; if (page === 'contacts') setNearbyServices(d); setNearbyServicesLoading(false); })
-                        .catch(e => console.log('Prefetch err emergency', e));
-                }
-                // Prefetch backend beaches
-                if (!cache.current.beaches) {
-                    beachesAPI.getAll({}).then(resp => {
-                        const list = Array.isArray(resp) ? resp : (resp?.results || resp?.data || []);
-                        cache.current.beaches = list;
-                        if (page === 'beaches') setBeachesData(list);
-                        setBeachesLoading(false);
-                    }).catch(e => console.log('Prefetch err beaches', e));
-                }
-            }
-
-            // 2. Fetch Tab Data (Using Cache)
-            if (targetPage === 'main') { 
-                if (cache.current.recommended) { setRecommendedPlaces(cache.current.recommended); return; }
-                setRecommendedLoading(true); setRecommendedPlaces([]);
-                const recTags = getRecommendedApiTagsForQuery(); 
-                const recs = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, recTags, recTags); 
-                cache.current.recommended = recs.slice(0, 5);
-                setRecommendedPlaces(cache.current.recommended);
-                setRecommendedLoading(false);
-            }
-            else if (targetPage === 'facilities') { 
-                if (cache.current.facilities[targetFilter]) { setFacilitiesData(cache.current.facilities[targetFilter]); return; }
-                setFacilitiesLoading(true); setFacilitiesData([]);
-                const qTags = getAllFacilityApiTagsForQuery(); 
-                const fTags = facilityFilterCategories[targetFilter]?.tags || []; 
-                const places = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags, fTags); 
-                cache.current.facilities[targetFilter] = places;
-                setFacilitiesData(places);
-                setFacilitiesLoading(false);
-            }
-            else if (targetPage === 'routes') { 
-                if (cache.current.routes[targetFilter]) { setRoutesData(cache.current.routes[targetFilter]); return; }
-                setRoutesLoading(true); setRoutesData([]);
-                const qTemplate = routeFilterCategories[targetFilter]?.tagsQuery; 
-                if (qTemplate) { 
-                    const dests = await fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate); 
-                    cache.current.routes[targetFilter] = dests;
-                    setRoutesData(dests);
-                } else { setRoutesData([]); }
-                setRoutesLoading(false);
-            }
-            else if (targetPage === 'beaches') {
-                if (cache.current.beaches) { setBeachesData(cache.current.beaches); return; }
-                try {
-                    setBeachesLoading(true);
-                    const params = beachSearch ? { search: beachSearch } : {};
-                    const resp = await beachesAPI.getAll(params);
-                    const list = Array.isArray(resp) ? resp : (resp?.results || resp?.data || []);
-                    if (!beachSearch) cache.current.beaches = list; // Only cache base list
-                    setBeachesData(list || []);
-                } catch (err) { console.error('Beaches error:', err); } 
-                finally { setBeachesLoading(false); }
-            }
-            else if (targetPage === 'contacts') {
-                if (cache.current.emergency) { setNearbyServices(cache.current.emergency); }
-                else {
-                    setNearbyServicesLoading(true); setNearbyServices([]);
-                    const services = await fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude);
-                    cache.current.emergency = services;
-                    setNearbyServices(services);
-                    setNearbyServicesLoading(false);
-                }
-
-                // --- Fetch National Numbers via Search ---
-                if (currentCountry && Object.keys(dynamicNationalContacts).length === 0) {
-                            const searchQueries = [
-                                `national police emergency number ${currentCountry}`,
-                                `national ambulance emergency number ${currentCountry}`,
-                                `national fire emergency number ${currentCountry}`,
-                            ];
-                            try {
-                                console.log("Searching for national numbers in", currentCountry);
-                                const searchResults = await googleSearch(searchQueries); 
-                                const dynamicContacts = searchResults.map((resp, index) => {
-                                    let type = index === 0 ? 'Police' : index === 1 ? 'Ambulance' : 'Fire';
-                                    const firstResult = resp.results?.[0];
-                                    return {
-                                        id: `dyn-${index}`,
-                                        name: `${type} (${currentCountry})`,
-                                        role: 'National (Searched)',
-                                        phone: firstResult?.snippet?.match(/(\b\d{2,4}\b|\b\d{3}[-\s]?\d{3,}\b)/)?.[0] || 'See search result',
-                                        note: firstResult?.snippet || 'No details found.',
-                                        link: firstResult?.link, 
-                                    };
-                                });
-                                setDynamicNationalContacts(dynamicContacts);
-                                setNationalContactsError(null);
-                            } catch (searchError) {
-                                console.error("Google Search error:", searchError);
-                                setNationalContactsError("Could not search for national numbers.");
-                                setDynamicNationalContacts([]); 
-                            } finally {
-                                setNationalContactsLoading(false);
+                        console.log("Getting location (15s timeout)...");
+                        let currentLoc = await Location.getCurrentPositionAsync({ 
+                            accuracy: Location.Accuracy.Balanced, 
+                            timeout: 15000 
+                        });
+                        fetchedCoords = currentLoc.coords;
+                    } catch (e) { 
+                        console.warn("Fresh GPS error, trying last known...", e); 
+                        try {
+                            let lastLoc = await Location.getLastKnownPositionAsync({});
+                            if (lastLoc) {
+                                fetchedCoords = lastLoc.coords;
+                                console.log("Using last known position");
+                            } else {
+                                throw new Error("No position found");
                             }
-                        } else if (!currentCountry) {
-                            // If country couldn't be determined
-                            setNationalContactsError("Could not determine country to search numbers.");
-                            setNationalContactsLoading(false);
-                        } else {
-                            setNationalContactsLoading(false); // We already have national numbers
+                        } catch (lastE) {
+                            setLocationErrorMsg('GPS location unavailable.'); 
+                            setLocationLoading(false); 
+                            return; 
                         }
                     }
+
+                    if (fetchedCoords) {
+                        cache.current.location = fetchedCoords;
+                        setLocation(fetchedCoords);
+
+                        try {
+                            let addresses = await Location.reverseGeocodeAsync(fetchedCoords);
+                            if (addresses && addresses.length > 0) {
+                                currentCountry = addresses[0].country;
+                                cache.current.country = currentCountry;
+                                setLocationCountry(currentCountry);
+                            }
+                        } catch (e) {}
+                    }
+                    setLocationLoading(false);
+                } else {
+                    // Instantly restore from cache
+                    setLocation(fetchedCoords);
+                    setLocationCountry(currentCountry);
+                }
+
+                if (!fetchedCoords) return;
+
+                // --- Background Prefetching ---
+                if (!cache.current.prefetched) {
+                    cache.current.prefetched = true;
+                    console.log("Starting silent background prefetch of all Utilities...");
+                    
+                    if (!cache.current.facilities['All']) {
+                        const qTags = getAllFacilityApiTagsForQuery();
+                        fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags)
+                            .then(d => { 
+                                if (!d) return;
+                                cache.current.facilities['All'] = d; 
+                                Object.entries(facilityFilterCategories).forEach(([key, cat]) => {
+                                    if (key !== 'All') {
+                                        cache.current.facilities[key] = d.filter(item => cat.tags.includes(item.typeRaw.toLowerCase()));
+                                    }
+                                });
+                                if (page === 'facilities') {
+                                    setFacilitiesData(cache.current.facilities[activeFacilityFilter] || []);
+                                    setFacilitiesLoading(false);
+                                }
+                            })
+                            .catch(e => console.log('Prefetch err facilities', e));
+                    }
+                    if (!cache.current.routes['All']) {
+                        const qTemplate = routeFilterCategories['All']?.tagsQuery;
+                        if (qTemplate) {
+                            fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate)
+                                .then(d => { 
+                                    if (!d) return;
+                                    cache.current.routes['All'] = d; 
+                                    cache.current.routes['Beaches'] = d.filter(item => item.typeDisplay === 'Beach');
+                                    cache.current.routes['Airports'] = d.filter(item => item.typeDisplay === 'Airport');
+                                    if (page === 'routes') {
+                                        setRoutesData(cache.current.routes[activeRouteFilter] || []);
+                                        setRoutesLoading(false);
+                                    }
+                                })
+                                .catch(e => console.log('Prefetch err routes', e));
+                        }
+                    }
+                    if (!cache.current.emergency) {
+                        fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude)
+                            .then(d => { cache.current.emergency = d; if (page === 'contacts') setNearbyServices(d); setNearbyServicesLoading(false); })
+                            .catch(e => console.log('Prefetch err emergency', e));
+                    }
+                    if (!cache.current.beaches) {
+                        fetchBeachesByQuery(fetchedCoords.latitude, fetchedCoords.longitude)
+                            .then(d => {
+                                cache.current.beaches = d;
+                                if (page === 'beaches' && !beachSearch) setBeachesData(d);
+                                setBeachesLoading(false);
+                            })
+                            .catch(e => console.log('Prefetch err beaches', e));
+                    }
+                }
+
+                // 2. Fetch Tab Data
+                if (targetPage === 'main') { 
+                    if (cache.current.recommended) { setRecommendedPlaces(cache.current.recommended); return; }
+                    setRecommendedLoading(true); setRecommendedPlaces([]);
+                    const recTags = getRecommendedApiTagsForQuery(); 
+                    const recs = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, recTags); 
+                    if (recs) {
+                        cache.current.recommended = recs.slice(0, 5);
+                        setRecommendedPlaces(cache.current.recommended);
+                    }
+                    setRecommendedLoading(false);
+                }
+                else if (targetPage === 'facilities') { 
+                    if (cache.current.facilities[targetFilter]) { setFacilitiesData(cache.current.facilities[targetFilter]); return; }
+                    setFacilitiesLoading(true); setFacilitiesData([]); setLocationErrorMsg(null);
+                    
+                    try {
+                        const qTags = getAllFacilityApiTagsForQuery(); 
+                        const places = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags); 
+                        
+                        if (places === null) {
+                            setLocationErrorMsg('API Connection Error. Check internet/mirrors.');
+                        } else {
+                            cache.current.facilities.All = places;
+                            Object.keys(facilityFilterCategories).forEach(cat => {
+                                if (cat === 'All') return;
+                                const catTags = facilityFilterCategories[cat].tags;
+                                cache.current.facilities[cat] = places.filter(p => p.typeRaw && catTags.includes(p.typeRaw.toLowerCase()));
+                            });
+                            setFacilitiesData(cache.current.facilities[targetFilter] || []);
+                        }
+                    } catch (dataErr) {
+                        console.error("Data fetch crash:", dataErr);
+                        setLocationErrorMsg('Data Error: ' + (dataErr.message || 'Processing failed.'));
+                    }
+                    setFacilitiesLoading(false);
+                }
+                else if (targetPage === 'routes') { 
+                    if (cache.current.routes[targetFilter]) { setRoutesData(cache.current.routes[targetFilter]); return; }
+                    setRoutesLoading(true); setRoutesData([]);
+                    const qTemplate = routeFilterCategories[targetFilter]?.tagsQuery; 
+                    if (qTemplate) { 
+                        const dests = await fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate); 
+                        cache.current.routes[targetFilter] = dests || [];
+                        setRoutesData(dests || []);
+                    } else { setRoutesData([]); }
+                    setRoutesLoading(false);
+                }
+                else if (targetPage === 'beaches') {
+                    if (!beachSearch && cache.current.beaches) { setBeachesData(cache.current.beaches); return; }
+                    try {
+                        setBeachesLoading(true);
+                        const list = await fetchBeachesByQuery(fetchedCoords.latitude, fetchedCoords.longitude, beachSearch);
+                        if (!beachSearch) cache.current.beaches = list;
+                        setBeachesData(list);
+                    } catch (err) { console.error('Beaches error:', err); } 
+                    finally { setBeachesLoading(false); }
+                }
+                else if (targetPage === 'contacts') {
+                    if (cache.current.emergency) { setNearbyServices(cache.current.emergency); }
+                    else {
+                        setNearbyServicesLoading(true); setNearbyServices([]);
+                        const services = await fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude);
+                        cache.current.emergency = services;
+                        setNearbyServices(services);
+                        setNearbyServicesLoading(false);
+                    }
+
+                    if (currentCountry && Object.keys(dynamicNationalContacts).length === 0) {
+                        const searchQueries = [
+                            `national police emergency number ${currentCountry}`,
+                            `national ambulance emergency number ${currentCountry}`,
+                            `national fire emergency number ${currentCountry}`,
+                        ];
+                        try {
+                            const searchResults = await googleSearch(searchQueries); 
+                            const dynamicContacts = searchResults.map((resp, index) => {
+                                let type = index === 0 ? 'Police' : index === 1 ? 'Ambulance' : 'Fire';
+                                const firstResult = resp.results?.[0];
+                                return {
+                                    id: `dyn-${index}`,
+                                    name: `${type} (${currentCountry})`,
+                                    role: 'National (Searched)',
+                                    phone: firstResult?.snippet?.match(/(\b\d{2,4}\b|\b\d{3}[-\s]?\d{3,}\b)/)?.[0] || 'See search result',
+                                    note: firstResult?.snippet || 'No details found.',
+                                    link: firstResult?.link, 
+                                };
+                            });
+                            setDynamicNationalContacts(dynamicContacts);
+                            setNationalContactsError(null);
+                        } catch (searchError) {
+                            setNationalContactsError("Could not search for national numbers.");
+                            setDynamicNationalContacts([]); 
+                        } finally { setNationalContactsLoading(false); }
+                    } else if (!currentCountry) {
+                        setNationalContactsError("Could not determine country.");
+                        setNationalContactsLoading(false);
+                    } else {
+                        setNationalContactsLoading(false);
+                    }
+                }
             } catch (error) {
                 console.error("Err fetchLocationAndData:", error);
                 const msg = error.code === 'E_LOCATION_TIMEOUT' ? 'Loc timeout.' : 'Fetch failed.';
@@ -409,7 +502,6 @@ const UtilitiesScreen = () => {
                 if (targetPage === 'main') setRecommendedErrorMsg(msg);
                 setNationalContactsError(msg);
             } finally {
-                // Ensure all loading states are cleared for the target page
                 setLocationLoading(false);
                 if (targetPage === 'facilities') setFacilitiesLoading(false);
                 if (targetPage === 'routes') setRoutesLoading(false);
@@ -422,15 +514,23 @@ const UtilitiesScreen = () => {
             }
         };
 
-        if (page === 'facilities' || page === 'routes' || page === 'main' || page === 'contacts') { fetchLocationAndData(page, page === 'facilities' ? activeFacilityFilter : (page === 'routes' ? activeRouteFilter : null)); }
-        else { setLocation(null); setLocationErrorMsg(null); setLocationLoading(false); setLocationCountry(null); setFacilitiesData([]); setFacilitiesLoading(false); setActiveFacilityFilter('All'); setRoutesData([]); setRoutesLoading(false); setActiveRouteFilter('All'); setRecommendedPlaces([]); setRecommendedLoading(false); setRecommendedErrorMsg(null); setNearbyServices([]); setNearbyServicesLoading(false); setDynamicNationalContacts([]); setNationalContactsLoading(false); setNationalContactsError(null); }
-    }, [page, activeFacilityFilter, activeRouteFilter]); // Dependencies
+        if (page === 'facilities' || page === 'routes' || page === 'main' || page === 'contacts' || page === 'beaches') { 
+            fetchLocationAndData(page, page === 'facilities' ? activeFacilityFilter : (page === 'routes' ? activeRouteFilter : 'All')); 
+        } else {
+            setLocation(null); setLocationErrorMsg(null); setLocationLoading(false); setLocationCountry(null);
+            setFacilitiesData([]); setFacilitiesLoading(false); setActiveFacilityFilter('All');
+            setRoutesData([]); setRoutesLoading(false); setActiveRouteFilter('All');
+            setRecommendedPlaces([]); setRecommendedLoading(false); setRecommendedErrorMsg(null);
+            setNearbyServices([]); setNearbyServicesLoading(false);
+            setDynamicNationalContacts([]); setNationalContactsLoading(false); setNationalContactsError(null);
+        }
+    }, [page, activeFacilityFilter, activeRouteFilter, refreshCount]); // Dependencies
 
     // --- Header ---
     const Header = ({ title }) => (<View style={styles.header}>{page !== 'main' && (<TouchableOpacity style={styles.headerBack} onPress={() => setPage('main')}><Text style={styles.backText}>←</Text></TouchableOpacity>)}<Text style={styles.headerTitle}>{title}</Text></View>);
     // --- Static Data ---
     // Keep mainUtilities for navigation, but contacts list is now dynamic + nearby
-    const mainUtilities = [ /* ... Use icons ... */ { id: 1, title: 'Nearby Facilities', description: 'Find hotels, hospitals, shops...', page: 'facilities', icon: '🛠️' }, { id: 2, title: 'Find Destinations', description: 'Get directions to beaches & airports.', page: 'routes', icon: '🗺️' }, { id: 4, title: 'Search Beaches', description: 'Search beaches from backend and view live info', page: 'beaches', icon: '🏝️' }, { id: 3, title: 'Emergency Info', description: 'National numbers & nearby services.', page: 'contacts', icon: '📞' },];
+    const mainUtilities = [ /* ... Use icons ... */ { id: 1, title: 'Nearby Facilities', description: 'Find hotels, hospitals, shops...', page: 'facilities', icon: '🛠️' }, { id: 2, title: 'Find Destinations', description: 'Get directions to beaches & airports.', page: 'routes', icon: '🗺️' }, { id: 3, title: 'Emergency Info', description: 'National numbers & nearby services.', page: 'contacts', icon: '📞' },];
     // --- Helper Actions ---
     const openMapAt = async (lat, lon, label = '') => { /* ... no change ... */ const q = `${lat},${lon}`; const u = Platform.select({ ios: `http://maps.apple.com/?ll=${q}&q=${encodeURIComponent(label)}`, android: `geo:${q}?q=${encodeURIComponent(label || q)}`, default: `https://www.google.com/maps/search/?api=1&query=${q}` }); const s = await Linking.canOpenURL(u); if (s) Linking.openURL(u); else Alert.alert('No map app'); };
     const openDirections = async (lat, lon, label = '') => { /* ... no change ... */ const d = `${lat},${lon}`; const s = location ? `${location.latitude},${location.longitude}` : ''; const u = Platform.select({ ios: `http://maps.apple.com/?saddr=${s}&daddr=${d}&dirflg=r`, android: `google.navigation:q=${d}${s ? `&origin=${s}` : ''}`, default: `https://www.google.com/maps/dir/?api=1&destination=${d}${s ? `&origin=${s}` : ''}` }); const sup = await Linking.canOpenURL(u); if (sup) Linking.openURL(u); else Alert.alert('No directions app'); };
@@ -442,86 +542,72 @@ const UtilitiesScreen = () => {
     // --- Render Functions ---
     const renderMain = () => {
         const recommendedHotelAndFood = recommendedPlaces;
-        return (<View style={styles.container}><ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}><View style={styles.searchContainer}><TextInput style={styles.searchInputMain} placeholder="Search nearby hotels, food, beaches..." value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={handleSearch} returnKeyType="search" /><TouchableOpacity style={[styles.searchButton, !searchQuery.trim() ? styles.searchButtonDisabled : null]} onPress={handleSearch} disabled={!searchQuery.trim()}><Text style={styles.searchButtonText}>🔍</Text></TouchableOpacity></View><Text style={styles.titleMain}>Beach Utilities</Text><View style={styles.categoriesContainer}>{mainUtilities.map((utility) => (<TouchableOpacity key={utility.id} style={styles.categoryCard} onPress={() => setPage(utility.page)}><View style={styles.categoryIconContainer}><Text style={styles.categoryIcon}>{utility.icon || '❔'}</Text></View><View style={styles.categoryInfo}><Text style={styles.categoryTitle}>{utility.title}</Text><Text style={styles.categoryDescription}>{utility.description}</Text></View></TouchableOpacity>))}</View><View style={styles.additionalSection}><Text style={styles.sectionTitle}>Recommended Nearby</Text>{recommendedLoading ? <ActivityIndicator size="small" color="#01579B" style={{ marginTop: 10, alignSelf: 'center' }} /> : null}{(recommendedErrorMsg || locationErrorMsg) && !recommendedLoading ? <Text style={styles.errorTextSmall}>{recommendedErrorMsg || locationErrorMsg}</Text> : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length > 0 ? (<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendedScroll}>{recommendedHotelAndFood.map((place) => { let icon = '📍'; if (facilityFilterCategories.Hotels.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Hotels.icon; else if (facilityFilterCategories.Restaurants.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Restaurants.icon; return (<TouchableOpacity key={place.id} style={styles.recommendCardLarge} onPress={() => { setPage('facilities'); const catKey = Object.keys(facilityFilterCategories).find(k => facilityFilterCategories[k].tags.includes(place.typeRaw)) || 'All'; setActiveFacilityFilter(catKey); setFacSearch(place.name); }}><View style={styles.recommendImageLarge}><Text style={styles.recommendImageText}>{icon}</Text></View><View style={styles.recommendInfoLarge}><Text style={styles.recommendTitleLarge} numberOfLines={1}>{place.name}</Text><Text style={styles.recommendDistanceLarge}>📍 {place.distance.toFixed(1)} km</Text><Text style={styles.recommendTypeLarge}>{place.typeDisplay}</Text></View></TouchableOpacity>); })}</ScrollView>) : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length === 0 ? (<Text style={styles.noResultsSmall}>No recommended hotels/eateries found nearby or location unavailable.</Text>) : null}</View></ScrollView></View>);
+        return (<View style={styles.container}><ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}><View style={styles.searchContainer}><TextInput style={styles.searchInputMain} placeholder="Search nearby hotels, food, beaches..." value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={handleSearch} returnKeyType="search" /><TouchableOpacity style={[styles.searchButton, !searchQuery.trim() ? styles.searchButtonDisabled : null]} onPress={handleSearch} disabled={!searchQuery.trim()}><Text style={styles.searchButtonText}>🔍</Text></TouchableOpacity></View><Text style={styles.titleMain}>Beach Utilities</Text><View style={styles.categoriesContainer}>{mainUtilities.map((utility) => (<TouchableOpacity key={utility.id} style={styles.categoryCard} onPress={() => setPage(utility.page)}><View style={styles.categoryIconContainer}><Text style={styles.categoryIcon}>{utility.icon || '❔'}</Text></View><View style={styles.categoryInfo}><Text style={styles.categoryTitle}>{utility.title}</Text><Text style={styles.categoryDescription}>{utility.description}</Text></View></TouchableOpacity>))}</View><View style={styles.additionalSection}><Text style={styles.sectionTitle}>Recommended Nearby</Text>{recommendedLoading ? <ActivityIndicator size="small" color="#01579B" style={{ marginTop: 10, alignSelf: 'center' }} /> : null}{(recommendedErrorMsg || locationErrorMsg) && !recommendedLoading ? <Text style={styles.errorTextSmall}>{recommendedErrorMsg || locationErrorMsg}</Text> : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length > 0 ? (<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendedScroll}>{recommendedHotelAndFood.map((place) => { let icon = '📍'; if (facilityFilterCategories.Hotels.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Hotels.icon; else if (facilityFilterCategories.Restaurants.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Restaurants.icon; return (<TouchableOpacity key={place.id} style={styles.recommendCardLarge} onPress={() => { setPage('facilities'); const catKey = Object.keys(facilityFilterCategories).find(k => facilityFilterCategories[k].tags.includes(place.typeRaw)) || 'All'; setActiveFacilityFilter(catKey); setFacSearch(place.name); }}><View style={styles.recommendImageLarge}><Text style={styles.recommendImageText}>{icon}</Text></View><View style={styles.recommendInfoLarge}><Text style={styles.recommendTitleLarge} numberOfLines={1}>{place.name}</Text><Text style={styles.recommendDistanceLarge}>📍 {(place.distance ?? 0).toFixed(1)} km</Text><Text style={styles.recommendTypeLarge}>{place.typeDisplay}</Text></View></TouchableOpacity>); })}</ScrollView>) : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length === 0 ? (<Text style={styles.noResultsSmall}>No recommended hotels/eateries found nearby or location unavailable.</Text>) : null}</View></ScrollView></View>);
     };
     const renderFacilities = () => {
-        const textFilteredData = facilitiesData.filter((f) => f && `${f.name || ''} ${f.typeDisplay || ''} ${f.address || ''}`.toLowerCase().includes(facSearch.trim().toLowerCase()));
-        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity></View></View>); };
-        return (<View style={styles.subContainer}><Header title="Nearby Facilities" /><TextInput placeholder="Filter nearby facilities..." style={styles.searchInputSub} value={facSearch} onChangeText={setFacSearch} clearButtonMode="while-editing" /><View style={styles.filterContainer}>{Object.entries(facilityFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeFacilityFilter === key ? styles.filterButtonActive : null]} onPress={() => setActiveFacilityFilter(key)}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeFacilityFilter === key ? styles.filterButtonTextActive : null]}>{key}</Text></TouchableOpacity>))}</View>{locationLoading || facilitiesLoading ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}{locationErrorMsg && !(locationLoading || facilitiesLoading) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}{!(locationLoading || facilitiesLoading) && !locationErrorMsg ? (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}>{facilitiesData.length === 0 && !facSearch ? 'No facilities found for filter.' : 'No facilities match filter/search.'}</Text>} />) : null}</View>);
+        // Filter by text AND by category if a category is selected and we are in 'All' mode, 
+        // but since we separate caches now, we just filter the current data by text.
+        // HOWEVER, to be safe if the distribution logic is still loading, we filter the current display list by active category flags.
+        const currentCatTags = facilityFilterCategories[activeFacilityFilter]?.tags || [];
+        const textFilteredData = facilitiesData.filter((f) => {
+            if (!f) return false;
+            const matchesText = `${f.name || ''} ${f.typeDisplay || ''} ${f.address || ''}`.toLowerCase().includes(facSearch.trim().toLowerCase());
+            const matchesCategory = activeFacilityFilter === 'All' || currentCatTags.includes(f.typeRaw.toLowerCase());
+            return matchesText && matchesCategory;
+        });
+        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {(item.distance ?? 0).toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity></View></View>); };
+        return (<View style={styles.subContainer}><Header title="Nearby Facilities" /><TextInput placeholder="Filter nearby facilities..." style={styles.searchInputSub} value={facSearch} onChangeText={setFacSearch} clearButtonMode="while-editing" /><View style={styles.filterContainer}>{Object.entries(facilityFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeFacilityFilter === key ? styles.filterButtonActive : null]} onPress={() => setActiveFacilityFilter(key)}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeFacilityFilter === key ? styles.filterButtonTextActive : null]}>{key}</Text></TouchableOpacity>))}</View>{locationLoading || facilitiesLoading ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}{locationErrorMsg && !(locationLoading || facilitiesLoading) ? (<View style={styles.errorBox}><Text style={styles.errorText}>{locationErrorMsg}</Text><TouchableOpacity style={styles.retryButton} onPress={() => { cache.current = { facilities: { All: null, Hotels: null, Restaurants: null, Hospitals: null, Pharmacies: null, Supermarkets: null }, routes: { All: null, Beaches: null, Airports: null }, recommended: null, emergency: null, location: null, country: null, prefetched: false, beaches: null }; setLocation(null); setActiveFacilityFilter('All'); setRefreshCount(prev => prev + 1); }}><Text style={styles.retryButtonText}>Refresh GPS & Data</Text></TouchableOpacity></View>) : null}{!(locationLoading || facilitiesLoading) && !locationErrorMsg ? (<View style={{ flex: 1 }}><FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<View style={styles.noResultsBox}><Text style={styles.noResults}>{facilitiesData.length === 0 && !facSearch ? 'No facilities found within 10km.' : 'No facilities match filter/search.'}</Text>{location && (<Text style={styles.debugText}>Near GPS: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>)}</View>} /><View style={styles.bottomInfo}><Text style={styles.infoTextSmall}>📍 Searching radius: 10km</Text></View></View>) : null}</View>);
     };
     const renderRoutes = () => {
         const textFilteredData = routesData.filter((dest) => dest && `${dest.name || ''} ${dest.typeDisplay || ''}`.toLowerCase().includes(routeSearch.trim().toLowerCase()));
-        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed Destination'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openDirections(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>▶️ Directions</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => shareText(`${item.name} - Loc: ${item.lat},${item.lon}`)}><Text style={styles.smallButtonSecText}>Share</Text></TouchableOpacity></View></View>); };
-        return (<View style={styles.subContainer}><Header title="Find Routes To..." /><TextInput placeholder="Filter nearby beaches or airports..." style={styles.searchInputSub} value={routeSearch} onChangeText={setRouteSearch} clearButtonMode="while-editing" /><View style={styles.filterContainer}>{Object.entries(routeFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeRouteFilter === key && styles.filterButtonActive]} onPress={() => setActiveRouteFilter(key)}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeRouteFilter === key && styles.filterButtonTextActive]}>{key}</Text></TouchableOpacity>))}</View>{(locationLoading || routesLoading) ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}{locationErrorMsg && !(locationLoading || routesLoading) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}{!(locationLoading || routesLoading) && !locationErrorMsg ? (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}>{routesData.length === 0 && !routeSearch ? `No ${activeRouteFilter !== 'All' ? activeRouteFilter.toLowerCase() : 'destinations'} found.` : 'No destinations match filter/search.'}</Text>} />) : null}</View>);
-    };
+        
+        const applyBeachApiSearch = async () => {
+            if (!routeSearch.trim()) return;
+            setRoutesLoading(true);
+            try {
+                const results = await fetchBeachesByQuery(location.latitude, location.longitude, routeSearch);
+                setRoutesData(results); // Replace current routes data with search results
+            } catch (e) { console.warn('API search err', e); }
+            finally { setRoutesLoading(false); }
+        };
 
-    // --- New: Render Beaches (backend search) ---
-    const renderBeaches = () => {
-        const filtered = beachesData.filter(b => !beachSearch.trim() || `${b.name || ''} ${b.state || ''}`.toLowerCase().includes(beachSearch.trim().toLowerCase()));
-        const renderItem = ({ item }) => (
-            <View style={styles.listItem}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.itemTitle}>{item.name || 'Unnamed Beach'}<Text> </Text><Text style={styles.badge}>{item.state || ''}</Text></Text>
-                    <Text style={styles.itemSub}>{item.description || ''}</Text>
-                    {item.latitude && item.longitude ? <Text style={styles.itemDistance}>📍 {item.latitude.toFixed(3)}, {item.longitude.toFixed(3)}</Text> : null}
-                </View>
-                <View style={styles.itemButtons}>
-                    <TouchableOpacity style={styles.smallButton} onPress={async () => {
-                        setSelectedBeach(item);
-                        // fetch live weather + sentiment + cv + ml
-                        try {
-                            const lat = item.latitude; const lon = item.longitude;
-                            const raw = await weatherAPI.getWeather(lat, lon).catch(() => null);
-                            let w = raw?.data || raw || raw;
-                            if (!w || w.temperature === undefined) {
-                                const ow = await externalWeatherAPI.openWeatherOneCall(lat, lon).catch(() => null);
-                                if (ow && ow.current) w = { temperature: ow.current.temp ?? ow.current.temperature, condition: ow.current.weather?.[0]?.description, source: 'openweather' };
-                                else {
-                                    const wa = await externalWeatherAPI.weatherapiCurrent(lat, lon).catch(() => null);
-                                    if (wa && wa.current) w = { temperature: wa.current.temp_c, condition: wa.current.condition?.text, source: 'weatherapi' };
-                                }
-                            }
-                            setBeachWeather(w || null);
-                        } catch (e) { console.error('beach weather err', e); }
-
-                        try { const v = await sentimentAPI.getBeachVibe(item._id || item.id || item.pk).catch(() => null); setBeachVibe(v || null); } catch (e) { console.error('beach vibe err', e); }
-                        try { const c = await cvAPI.getConditionStatus(item._id || item.id || item.pk).catch(() => null); setBeachCondition(c || null); } catch (e) { console.error('beach cv err', e); }
-                        try { const ms = await mlAPI.getSuitability(item._id || item.id || item.pk).catch(() => null); setBeachSuitability(ms || null); } catch (e) { console.error('beach ml err', e); }
-                    }}>
-                        <Text style={styles.smallButtonText}>View</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openMapAt(item.latitude, item.longitude, item.name)}>
-                        <Text style={styles.smallButtonSecText}>Map</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        );
-
+        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {(item.distance ?? 0).toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openDirections(item.latitude || item.lat, item.longitude || item.lon, item.name)}><Text style={styles.smallButtonText}>▶️ Directions</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => shareText(`${item.name} - Loc: ${item.latitude || item.lat},${item.longitude || item.lon}`)}><Text style={styles.smallButtonSecText}>Share</Text></TouchableOpacity></View></View>); };
+        
         return (
             <View style={styles.subContainer}>
-                <Header title="Search Beaches" />
-                <TextInput placeholder="Search beaches by name or state..." style={styles.searchInputSub} value={beachSearch} onChangeText={setBeachSearch} clearButtonMode="while-editing" onSubmitEditing={() => { setPage('beaches'); }} />
-                {beachesLoading ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}
-                {!beachesLoading && !beachesData?.length ? <Text style={styles.noResultsSmall}>No beaches found.</Text> : null}
-                {!beachesLoading && beachesData?.length > 0 ? (
-                    <FlatList data={filtered} keyExtractor={(i) => i._id || i.id || i.name} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 100 }} />
-                ) : null}
-
-                {selectedBeach ? (
-                    <View style={styles.details}>
-                        <Text style={styles.detailsTitle}>{selectedBeach.name}</Text>
-                        <Text style={styles.detailsLine}>Weather: {beachWeather ? `${beachWeather.temperature ?? '--'}°C, ${beachWeather.condition ?? '--'}` : '—'}</Text>
-                        <Text style={styles.detailsLine}>Vibe: {beachVibe?.vibe || beachVibe?.summary || '—'}</Text>
-                        <Text style={styles.detailsLine}>CV Condition: {beachCondition?.status || beachCondition?.condition || '—'}</Text>
-                        <Text style={styles.detailsLine}>Suitability: {beachSuitability?.suitability_scores ? `${beachSuitability.suitability_scores.overall.toFixed(0)}%` : (beachSuitability?.overall ? `${beachSuitability.overall}%` : '—')}</Text>
-                        <TouchableOpacity style={styles.openButton} onPress={() => openMapAt(selectedBeach.latitude, selectedBeach.longitude, selectedBeach.name)}>
-                            <Text style={styles.openButtonText}>Open in Maps</Text>
+                <Header title="Find Routes To..." />
+                <View style={styles.searchContainer}>
+                    <TextInput 
+                        placeholder={activeRouteFilter === 'Beaches' ? "Search beaches by name..." : "Filter nearby routes..."} 
+                        style={styles.searchInputMain} 
+                        value={routeSearch} 
+                        onChangeText={setRouteSearch} 
+                        clearButtonMode="while-editing" 
+                        onSubmitEditing={activeRouteFilter === 'Beaches' ? applyBeachApiSearch : null}
+                    />
+                    {activeRouteFilter === 'Beaches' && (
+                        <TouchableOpacity style={styles.searchButton} onPress={applyBeachApiSearch}>
+                            <Text style={styles.searchButtonText}>🔍</Text>
                         </TouchableOpacity>
-                    </View>
+                    )}
+                </View>
+                <View style={styles.filterContainer}>{Object.entries(routeFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeRouteFilter === key && styles.filterButtonActive]} onPress={() => { setActiveRouteFilter(key); setRouteSearch(''); setRoutesData([]); }}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeRouteFilter === key && styles.filterButtonTextActive]}>{key}</Text></TouchableOpacity>))}</View>
+                {(locationLoading || routesLoading) ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}
+                {locationErrorMsg && !(locationLoading || routesLoading) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}
+                {!(locationLoading || routesLoading) && !locationErrorMsg ? (
+                    <FlatList 
+                        data={textFilteredData} 
+                        keyExtractor={(item, idx) => (item.id || idx) + String(idx)} 
+                        renderItem={renderItem} 
+                        contentContainerStyle={{ paddingBottom: 60 }} 
+                        ListEmptyComponent={<Text style={styles.noResults}>{routesData.length === 0 && !routeSearch ? `No ${activeRouteFilter !== 'All' ? activeRouteFilter.toLowerCase() : 'destinations'} found.` : 'No destinations match filter/search.'}</Text>} 
+                    />
                 ) : null}
             </View>
         );
     };
+
+
 
     // --- UPDATED renderContacts ---
     const renderContacts = () => {
@@ -568,7 +654,7 @@ const UtilitiesScreen = () => {
             );
         };
 
-        const renderNearbyItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || ''}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Service'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openWebSearch(`${item.name} ${item.typeDisplay} phone number`)}><Text style={styles.smallButtonSecText}>🌐 Search</Text></TouchableOpacity></View></View>); };
+        const renderNearbyItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || ''}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Service'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {(item.distance ?? 0).toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openWebSearch(`${item.name} ${item.typeDisplay} phone number`)}><Text style={styles.smallButtonSecText}>🌐 Search</Text></TouchableOpacity></View></View>); };
 
         return (
             <ScrollView style={styles.subContainerScrollView} contentContainerStyle={styles.subContentScrollView}>
@@ -603,7 +689,7 @@ const UtilitiesScreen = () => {
     };
 
     // --- Page Switching ---
-    switch (page) { /* ... no change ... */ case 'facilities': return renderFacilities(); case 'routes': return renderRoutes(); case 'beaches': return renderBeaches(); case 'contacts': return renderContacts(); default: return renderMain(); }
+    switch (page) { /* ... no change ... */ case 'facilities': return renderFacilities(); case 'routes': return renderRoutes(); case 'contacts': return renderContacts(); default: return renderMain(); }
 };
 
 // --- Styles ---
@@ -611,7 +697,7 @@ const styles = StyleSheet.create({
     // ... (Keep existing styles, add/update contact styles) ...
     sectionTitleSmall: { fontSize: 18, fontWeight: '700', color: '#0288D1', marginBottom: 8, marginTop: 15, paddingHorizontal: 15, },
     nationalContactItem: { backgroundColor: '#E3F2FD', }, // Highlight national numbers slightly
-    subContainerScrollView: { flex: 1, backgroundColor: '#F0F4F8', paddingTop: Platform.OS === 'android' ? 10 : 40, },
+    subContainerScrollView: { flex: 1, backgroundColor: '#F0F4F8', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 40, },
     subContentScrollView: { paddingBottom: 60, }, // Add padding to bottom of scroll content
     regionInfoText: { fontSize: 13, color: '#424242', marginHorizontal: 15, marginBottom: 5, textAlign: 'center', fontWeight: '500', },
     disclaimerText: { fontSize: 12, color: '#616161', marginHorizontal: 15, marginBottom: 10, textAlign: 'center', fontStyle: 'italic', },
@@ -628,7 +714,7 @@ const styles = StyleSheet.create({
     recommendTypeLarge: { fontSize: 13, color: '#616161', },
     errorTextSmall: { textAlign: 'center', color: '#D32F2F', fontSize: 13, paddingHorizontal: 15, marginTop: 10, marginBottom: 10, },
     noResultsSmall: { textAlign: 'center', color: '#757575', fontSize: 13, paddingHorizontal: 15, marginTop: 10, marginBottom: 10, },
-    container: { flex: 1, backgroundColor: '#F0F4F8', }, scrollView: { flex: 1, }, scrollViewContent: { paddingBottom: 90, paddingTop: 10, }, searchContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 15, marginBottom: 10, backgroundColor: '#FFFFFF', borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 3, }, searchInputMain: { flex: 1, fontSize: 16, paddingHorizontal: 15, color: '#333', height: 45, }, searchButton: { marginLeft: 10, width: 45, height: 45, borderRadius: 25, backgroundColor: '#0288D1', justifyContent: 'center', alignItems: 'center', }, searchButtonDisabled: { backgroundColor: '#B0BEC5', }, searchButtonText: { fontSize: 20, color: '#FFF', }, titleMain: { fontSize: 26, fontWeight: 'bold', color: '#01579B', marginHorizontal: 15, marginVertical: 10, marginBottom: 15, }, categoriesContainer: { paddingHorizontal: 15, }, /* categoryCard defined above */ /* categoryImage removed */ categoryInfo: { flex: 1, justifyContent: 'center', }, categoryTitle: { fontSize: 18, fontWeight: '700', color: '#212121', marginBottom: 5, }, categoryDescription: { fontSize: 14, color: '#757575', lineHeight: 18, }, additionalSection: { marginTop: 20, paddingLeft: 15, marginBottom: 20, }, sectionTitle: { fontSize: 20, fontWeight: '700', color: '#0288D1', marginBottom: 15, }, /* recommendCard removed */ subContainer: { flex: 1, backgroundColor: '#F0F4F8', paddingTop: Platform.OS === 'android' ? 10 : 40, paddingHorizontal: 0, }, header: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 10, paddingHorizontal: 15, minHeight: 30, }, headerBack: { marginRight: 12, padding: 5, }, backText: { color: '#0288D1', fontSize: 28, fontWeight: 'bold', }, headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#01579B', flex: 1, }, searchInputSub: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 10, marginHorizontal: 15, marginBottom: 10, borderWidth: 1, borderColor: '#E0E0E0', fontSize: 16, },
+    container: { flex: 1, backgroundColor: '#F0F4F8', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0, }, scrollView: { flex: 1, }, scrollViewContent: { paddingBottom: 90, paddingTop: 10, }, searchContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, marginHorizontal: 15, marginBottom: 10, backgroundColor: '#FFFFFF', borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 3, }, searchInputMain: { flex: 1, fontSize: 16, paddingHorizontal: 15, color: '#333', height: 45, }, searchButton: { marginLeft: 10, width: 45, height: 45, borderRadius: 25, backgroundColor: '#0288D1', justifyContent: 'center', alignItems: 'center', }, searchButtonDisabled: { backgroundColor: '#B0BEC5', }, searchButtonText: { fontSize: 20, color: '#FFF', }, titleMain: { fontSize: 26, fontWeight: 'bold', color: '#01579B', marginHorizontal: 15, marginVertical: 10, marginBottom: 15, }, categoriesContainer: { paddingHorizontal: 15, }, /* categoryCard defined above */ /* categoryImage removed */ categoryInfo: { flex: 1, justifyContent: 'center', }, categoryTitle: { fontSize: 18, fontWeight: '700', color: '#212121', marginBottom: 5, }, categoryDescription: { fontSize: 14, color: '#757575', lineHeight: 18, }, additionalSection: { marginTop: 20, paddingLeft: 15, marginBottom: 20, }, sectionTitle: { fontSize: 20, fontWeight: '700', color: '#0288D1', marginBottom: 15, }, /* recommendCard removed */ subContainer: { flex: 1, backgroundColor: '#F0F4F8', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 40, paddingHorizontal: 0, }, header: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 10, paddingHorizontal: 15, minHeight: 30, }, headerBack: { marginRight: 12, padding: 5, }, backText: { color: '#0288D1', fontSize: 28, fontWeight: 'bold', }, headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#01579B', flex: 1, }, searchInputSub: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 10, marginHorizontal: 15, marginBottom: 10, borderWidth: 1, borderColor: '#E0E0E0', fontSize: 16, },
     filterContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', paddingHorizontal: 12, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E0E0E0', marginBottom: 5, },
     filterButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#E3F2FD', borderWidth: 1, borderColor: '#B0BEC5', marginRight: 8, marginBottom: 8, },
     filterButtonActive: { backgroundColor: '#0288D1', borderColor: '#01579B', },
@@ -638,7 +724,15 @@ const styles = StyleSheet.create({
     listItem: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 15, marginVertical: 6, marginHorizontal: 15, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2, }, itemTitle: { fontSize: 17, fontWeight: '700', color: '#01579B', marginBottom: 3, flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', }, itemSub: { fontSize: 14, color: '#424242', marginTop: 2, lineHeight: 18, }, itemSmall: { fontSize: 12, color: '#757575', marginTop: 4, }, itemDistance: { fontSize: 13, color: '#1976D2', fontWeight: '500', marginTop: 5, }, itemButtons: { marginLeft: 10, alignItems: 'flex-end', justifyContent: 'flex-start', }, smallButton: { backgroundColor: '#0288D1', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 8, minWidth: 75, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', }, smallButtonSecondary: { backgroundColor: '#E3F2FD', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#0288D1', minWidth: 75, alignItems: 'center', }, buttonDisabled: { backgroundColor: '#CFD8DC', borderColor: '#B0BEC5', opacity: 0.7, }, smallButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', marginLeft: 4, }, smallButtonSecText: { color: '#01579B', fontSize: 13, fontWeight: '600', },
     badge: { backgroundColor: '#E3F2FD', color: '#01579B', fontSize: 12, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, overflow: 'hidden', fontWeight: '700', marginLeft: 5, },
     badgeSmall: { backgroundColor: '#E8F0FE', color: '#0D47A1', fontSize: 11, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden', fontWeight: '700', marginLeft: 5, },
-    noResults: { textAlign: 'center', color: '#757575', marginTop: 20, fontSize: 15, paddingHorizontal: 20, }, errorText: { textAlign: 'center', color: '#D32F2F', marginTop: 10, fontSize: 14, paddingHorizontal: 20, },
+    noResultsBox: { padding: 20, alignItems: 'center' },
+    debugText: { fontSize: 11, color: '#90A4AE', marginTop: 15, fontStyle: 'italic' },
+    errorBox: { margin: 20, padding: 15, backgroundColor: '#FFEBEE', borderRadius: 10, alignItems: 'center' },
+    retryButton: { marginTop: 10, backgroundColor: '#D32F2F', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 5 },
+    retryButtonText: { color: '#FFFFFF', fontWeight: 'bold' },
+    bottomInfo: { padding: 10, alignItems: 'center', backgroundColor: '#F5F5F5' },
+    infoTextSmall: { fontSize: 11, color: '#607D8B' },
+    noResults: { textAlign: 'center', color: '#757575', marginTop: 20, fontSize: 15, paddingHorizontal: 20, }, 
+    errorText: { textAlign: 'center', color: '#D32F2F', fontSize: 14, paddingHorizontal: 20, },
 });
 
 export default UtilitiesScreen;

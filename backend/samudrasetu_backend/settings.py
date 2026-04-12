@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'sync',
     'eco_impact',
     'weather',
+    'community',
 ]
 
 MIDDLEWARE = [

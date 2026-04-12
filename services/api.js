@@ -602,5 +602,68 @@ export const ecoImpactAPI = {
   },
 };
 
+// --- Community API ---
+export const communityAPI = {
+  getPosts: async (page = 1) => {
+    try {
+      const response = await api.get(`/community/posts/?page=${page}`);
+      return response.data;
+    } catch (error) {
+      console.error('Community getPosts error:', error);
+      throw error;
+    }
+  },
+
+  createPost: async (data) => {
+    try {
+      const response = await api.post('/community/posts/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Community createPost error:', error);
+      throw error;
+    }
+  },
+
+  getPost: async (postId) => {
+    try {
+      const response = await api.get(`/community/posts/${postId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Community getPost error:', error);
+      throw error;
+    }
+  },
+
+  likePost: async (postId, userId) => {
+    try {
+      const response = await api.post(`/community/posts/${postId}/like/`, { user_id: userId });
+      return response.data;
+    } catch (error) {
+      console.error('Community likePost error:', error);
+      throw error;
+    }
+  },
+
+  addComment: async (postId, data) => {
+    try {
+      const response = await api.post(`/community/posts/${postId}/comments/`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Community addComment error:', error);
+      throw error;
+    }
+  },
+
+  likeComment: async (commentId, userId) => {
+    try {
+      const response = await api.post(`/community/comments/${commentId}/like/`, { user_id: userId });
+      return response.data;
+    } catch (error) {
+      console.error('Community likeComment error:', error);
+      throw error;
+    }
+  },
+};
+
 export default api;
 

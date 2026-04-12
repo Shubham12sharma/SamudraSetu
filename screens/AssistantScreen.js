@@ -137,14 +137,14 @@ export default function AssistantScreen() {
                 try {
                     const resp = await mlAPI.getSuitability(beach.id).catch(() => null);
                     if (resp?.suitability_scores) {
-                        const overall = resp.suitability_scores.overall || 0;
-                        const swimming = resp.suitability_scores.swimming || 0;
-                        const family = resp.suitability_scores.family || 0;
+                        const overall = resp.suitability_scores.overall ?? 0;
+                        const swimming = resp.suitability_scores.swimming ?? 0;
+                        const family = resp.suitability_scores.family ?? 0;
 
                         const scoreBar = getScoreBar(overall);
                         lines.push(`${scoreBar} ${beach.name}, ${beach.city}`);
-                        lines.push(`   Overall: ${overall.toFixed(0)}%`);
-                        lines.push(`   Swimming: ${swimming.toFixed(0)}% | Family: ${family.toFixed(0)}%`);
+                        lines.push(`   Overall: ${(overall || 0).toFixed(0)}%`);
+                        lines.push(`   Swimming: ${(swimming || 0).toFixed(0)}% | Family: ${(family || 0).toFixed(0)}%`);
                         lines.push('');
                     }
                 } catch (err) {
