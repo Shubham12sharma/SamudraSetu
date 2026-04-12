@@ -209,7 +209,7 @@ export default function CommunityScreen({ navigation }) {
         if (!commentText.trim() || !user || !postDetail) return;
         setSubmittingComment(true);
         try {
-            await communityAPI.addComment(postDetail.id, {
+            await communityAPI.addComment(postDetail.id || postDetail._id, {
                 author_id: user._id || user.id,
                 author_name: user.name,
                 author_avatar: user.avatar_url || '',
@@ -218,13 +218,14 @@ export default function CommunityScreen({ navigation }) {
             });
             setCommentText('');
             setReplyingTo(null);
-            const data = await communityAPI.getPost(postDetail.id);
+            const data = await communityAPI.getPost(postDetail.id || postDetail._id);
             setPostDetail(data);
             setPosts(prev => prev.map(p =>
-                p.id === postDetail.id ? { ...p, comments_count: data.comments_count } : p
+                (p.id === postDetail.id || p._id === postDetail._id) ? { ...p, comments_count: data.comments_count } : p
             ));
         } catch (err) {
-            Alert.alert('Error', 'Could not add comment.');
+            const errorMsg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Could not add comment.';
+            Alert.alert('Error', errorMsg);
         } finally {
             setSubmittingComment(false);
         }

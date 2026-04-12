@@ -57,7 +57,7 @@ def posts_list(request):
 def post_detail(request, post_id):
     """Get a single post with all its comments (threaded)."""
     try:
-        post = Post.objects.get(_id=post_id)
+        post = Post.objects.get(pk=post_id)
     except Post.DoesNotExist:
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception:
@@ -80,7 +80,7 @@ def like_post(request, post_id):
         return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        post = Post.objects.get(_id=post_id)
+        post = Post.objects.get(pk=post_id)
     except Exception:
         from bson import ObjectId
         try:
@@ -115,7 +115,7 @@ def add_comment(request, post_id):
 
     # Verify post exists
     try:
-        post = Post.objects.get(_id=post_id)
+        post = Post.objects.get(pk=post_id)
     except Exception:
         from bson import ObjectId
         try:
@@ -124,8 +124,8 @@ def add_comment(request, post_id):
             return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     comment = Comment(
-        post_id=str(post._id),
-        author_id=data['author_id'],
+        post_id=str(post.pk),
+        author_id=str(data['author_id']),
         author_name=data['author_name'],
         author_avatar=data.get('author_avatar', ''),
         content=data['content'],
