@@ -16,6 +16,7 @@ import {
 
 import { AuthContext } from '../context/AuthContext';
 import { authAPI } from '../services/api';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen({ navigation }) {
 
@@ -54,6 +55,39 @@ export default function ProfileScreen({ navigation }) {
             console.log(err);
         } finally {
             setRefreshing(false);
+        }
+    };
+
+    const handlePickImage = async () => {
+        // Ask for permission explicitly
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (permissionResult.granted === false) {
+            Alert.alert('Permission Denied', 'You need to allow camera roll permissions to upload an avatar.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            uploadAvatar(result.assets[0].uri);
+        }
+    };
+
+    const uploadAvatar = async (imageUri) => {
+        try {
+            const updated = await authAPI.uploadAvatar(profile._id || profile.id, imageUri);
+            setProfile(updated);
+            login(updated);
+            Alert.alert('Success', 'Profile photo updated!');
+        } catch (err) {
+            console.error(err);
+            Alert.alert('Error', 'Unable to upload photo.');
         }
     };
 
@@ -155,17 +189,12 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.profileHeader}>
 
                     <TouchableOpacity
-                        onPress={() =>
-                            Alert.alert(
-                                "Feature",
-                                "Profile photo upload coming soon!"
-                            )
-                        }
+                        onPress={handlePickImage}
                     >
                         <Image
                             source={{
                                 uri:
-                                    profile?.avatar ||
+                                    profile?.avatar_url || profile?.avatar ||
                                     'https://ui-avatars.com/api/?name=User'
                             }}
                             style={styles.avatar}

@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -36,20 +36,124 @@ const getAllFacilityApiTagsForQuery = () => { /* ... (no change) ... */ const al
 const getRecommendedApiTagsForQuery = () => { /* ... (no change) ... */ return [...facilityFilterCategories.Hotels.tags, ...facilityFilterCategories.Restaurants.tags]; };
 
 // --- API Fetching Functions ---
-// fetchNearbyFacilitiesWithExpansion remains the same
-const fetchNearbyFacilitiesWithExpansion = async (latitude, longitude, tagsToQuery = [], tagsToFilter = [], initialRadiusKm = 5, maxRadiusKm = 50, minResults = 10) => { /* ... (no change from previous) ... */ let currentRadiusKm = initialRadiusKm; let fetchedPlaces = []; const amenityRegex = `^(${tagsToQuery.join('|')})$`; if (!tagsToQuery || tagsToQuery.length === 0) { console.warn("fetchNearbyFacilities: No tagsToQuery provided."); return []; } console.log(`Starting FACILITY fetch for query tags: ${tagsToQuery.join(', ') | 'All'}, filter: ${tagsToFilter.join(',') || 'None'}, radius: ${initialRadiusKm}km`); while (currentRadiusKm <= maxRadiusKm) { console.log(`Attempt FACILITY fetch radius: ${currentRadiusKm}km...`); const radiusMeters = currentRadiusKm * 1000; const query = `[out:json][timeout:45];(node["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`; const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`; try { const response = await fetch(url); console.log(`FACILITY API Status ${currentRadiusKm}km:`, response.status); if (!response.ok) { let e = await response.text(); console.error(`Err Body (${response.status}):`, e.substring(0, 500)); if (response.status === 429 || response.status === 504) { console.warn('Overpass limit/timeout'); break; } throw new Error(`HTTP ${response.status}`); } const data = await response.json(); console.log(`Received ${data.elements?.length ?? 0} elements at ${currentRadiusKm}km.`); if (!data.elements || data.elements.length === 0) { if (currentRadiusKm >= maxRadiusKm) break; currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); continue; } fetchedPlaces = data.elements.map((element) => { const tags = element.tags || {}; const loc = element.center || { lat: element.lat, lon: element.lon }; if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null; const typeRaw = tags.amenity || 'unknown'; if (tagsToFilter.length > 0 && !tagsToFilter.includes(typeRaw)) return null; const addr = [tags['addr:housenumber'], tags['addr:street'], tags['addr:suburb'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ').trim() || 'Address not available'; return { id: String(element.id), name: tags.name || tags.amenity || 'Unnamed Place', typeRaw: typeRaw, typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), address: addr, lat: loc.lat, lon: loc.lon, phone: tags.phone || tags['contact:phone'] || null, distance: getDistance(latitude, longitude, loc.lat, loc.lon) }; }).filter(p => p && p.name !== 'Unnamed Place'); console.log(`Processed ${fetchedPlaces.length} valid places matching filter at ${currentRadiusKm}km.`); if (fetchedPlaces.length >= minResults || currentRadiusKm >= maxRadiusKm) break; else { console.log(`Found ${fetchedPlaces.length}, need ${minResults}. Incr radius.`); currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); } } catch (error) { console.error(`Err fetch/parse radius ${currentRadiusKm}km:`, error); Alert.alert("API Error", `Fetch failed. (${error.message})`); break; } } fetchedPlaces.sort((a, b) => a.distance - b.distance); console.log(`Returning ${fetchedPlaces.length} final places.`); return fetchedPlaces; };
-// fetchNearbyDestinationsWithExpansion remains the same
-const fetchNearbyDestinationsWithExpansion = async (latitude, longitude, tagsQueryTemplate, initialRadiusKm = 20, maxRadiusKm = 200, minResults = 5) => { /* ... (no change from previous) ... */
-    let currentRadiusKm = initialRadiusKm; let fetchedDestinations = [];
-    console.log(`Starting DESTINATION fetch with initial radius: ${initialRadiusKm}km`);
-    while (currentRadiusKm <= maxRadiusKm) { console.log(`Attempting DESTINATION fetch with radius: ${currentRadiusKm}km...`); const radiusMeters = currentRadiusKm * 1000; const filledQuery = tagsQueryTemplate.replace(/{LAT}/g, latitude.toString()).replace(/{LON}/g, longitude.toString()).replace(/{RADIUS}/g, radiusMeters.toString()); const query = `[out:json][timeout:60];(${filledQuery});out center;`; const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`; try { const response = await fetch(url); console.log(`DESTINATION API Status ${currentRadiusKm}km:`, response.status); if (!response.ok) { let e = await response.text(); console.error(`DEST API Err Body (${response.status}):`, e.substring(0, 500)); if (response.status === 429 || response.status === 504) { console.warn('Overpass limit/timeout'); break; } throw new Error(`HTTP ${response.status}`); } const data = await response.json(); console.log(`Received ${data.elements?.length ?? 0} DEST elements at ${currentRadiusKm}km.`); if (!data.elements || data.elements.length === 0) { if (currentRadiusKm >= maxRadiusKm) break; currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); continue; } fetchedDestinations = data.elements.map((element) => { const tags = element.tags || {}; const loc = element.center || { lat: element.lat, lon: element.lon }; if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null; let type = 'Destination'; if (tags.natural === 'beach') type = 'Beach'; else if (tags.aeroway === 'aerodrome') type = 'Airport'; return { id: String(element.id), name: tags.name || `${type} ID ${element.id}`, typeDisplay: type, lat: loc.lat, lon: loc.lon, distance: getDistance(latitude, longitude, loc.lat, loc.lon) }; }).filter(d => d && d.name !== 'Unnamed Place'); console.log(`Processed ${fetchedDestinations.length} valid DESTINATIONS at ${currentRadiusKm}km.`); if (fetchedDestinations.length >= minResults || currentRadiusKm >= maxRadiusKm) break; else { console.log(`Found ${fetchedDestinations.length}, need ${minResults}. Incr radius.`); currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); } } catch (error) { console.error(`Err fetch/parse DEST radius ${currentRadiusKm}km:`, error); Alert.alert("API Error", `Fetch failed. (${error.message})`); break; } } fetchedDestinations.sort((a, b) => a.distance - b.distance); console.log(`Returning ${fetchedDestinations.length} final DESTINATIONS.`); return fetchedDestinations;
+// Multiple robust OSM Overpass API endpoints in case one rate limits
+const OVERPASS_ENDPOINTS = [
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://z.overpass-api.de/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+];
+
+const fetchOverpassData = async (query) => {
+    for (const base of OVERPASS_ENDPOINTS) {
+        try {
+            const url = `${base}?data=${encodeURIComponent(query)}`;
+            const response = await fetch(url);
+            if (response.ok) return await response.json();
+            if (response.status === 429 || response.status === 504) continue; // Try next fallback mirror
+        } catch (error) { console.warn(`Fetch error on ${base}:`, error); }
+    }
+    return { elements: [] };
 };
-// fetchNearbyEmergencyServices remains the same
-const fetchNearbyEmergencyServices = async (latitude, longitude, radiusKm = 10, maxRadiusKm = 50, minResults = 3) => { /* ... (no change from previous) ... */
-    let currentRadiusKm = radiusKm; let fetchedServices = []; const queryTags = ['police', 'hospital', 'clinic', 'doctors', 'fire_station']; const queryRegex = `^(${queryTags.join('|')})$`;
-    console.log(`Starting EMERGENCY SERVICE fetch, initial radius: ${radiusKm}km`);
-    while (currentRadiusKm <= maxRadiusKm) { console.log(`Attempt EMERGENCY fetch radius: ${currentRadiusKm}km...`); const radiusMeters = currentRadiusKm * 1000; const query = `[out:json][timeout:45];(node["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`; const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`; try { const response = await fetch(url); console.log(`EMERGENCY API Status ${currentRadiusKm}km:`, response.status); if (!response.ok) { let e = await response.text(); console.error(`EMERGENCY Err Body (${response.status}):`, e.substring(0, 500)); if (response.status === 429 || response.status === 504) { console.warn('Overpass limit/timeout'); break; } throw new Error(`HTTP ${response.status}`); } const data = await response.json(); console.log(`Received ${data.elements?.length ?? 0} EMERGENCY elements at ${currentRadiusKm}km.`); if (!data.elements || data.elements.length === 0) { if (currentRadiusKm >= maxRadiusKm) break; currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); continue; } fetchedServices = data.elements.map((element) => { const tags = element.tags || {}; const loc = element.center || { lat: element.lat, lon: element.lon }; if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null; const typeRaw = tags.amenity || tags.emergency || 'unknown'; return { id: String(element.id), name: tags.name || typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Emergency Service', typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), lat: loc.lat, lon: loc.lon, distance: getDistance(latitude, longitude, loc.lat, loc.lon) }; }).filter(s => s); console.log(`Processed ${fetchedServices.length} valid EMERGENCY services at ${currentRadiusKm}km.`); if (fetchedServices.length >= minResults || currentRadiusKm >= maxRadiusKm) break; else { console.log(`Found ${fetchedServices.length}, need ${minResults}. Incr radius.`); currentRadiusKm = Math.min(currentRadiusKm * 2, maxRadiusKm); await new Promise(r => setTimeout(r, 500)); } } catch (error) { console.error(`Err fetch/parse EMERGENCY radius ${currentRadiusKm}km:`, error); Alert.alert("API Error", `Fetch failed. (${error.message})`); break; } }
-    fetchedServices.sort((a, b) => a.distance - b.distance); console.log(`Returning ${fetchedServices.length} final EMERGENCY services.`); return fetchedServices;
+
+const fetchNearbyFacilitiesWithExpansion = async (latitude, longitude, tagsToQuery = [], tagsToFilter = []) => {
+    let fetchedPlaces = [];
+    const amenityRegex = `^(${tagsToQuery.join('|')})$`;
+    if (!tagsToQuery || tagsToQuery.length === 0) return [];
+    
+    // Fetch a fixed 2.5km radius
+    const radiusMeters = 2500; 
+    const query = `[out:json][timeout:15];(node["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${amenityRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`;
+    
+    const data = await fetchOverpassData(query);
+    if (!data.elements) return [];
+
+    fetchedPlaces = data.elements.map((element) => {
+        const tags = element.tags || {};
+        const loc = element.center || { lat: element.lat, lon: element.lon };
+        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        const typeRaw = tags.amenity || 'unknown';
+        if (tagsToFilter.length > 0 && !tagsToFilter.includes(typeRaw)) return null;
+        const addr = [tags['addr:housenumber'], tags['addr:street'], tags['addr:suburb'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ').trim() || 'Address not available';
+        
+        return {
+            id: String(element.id), name: tags.name || tags.amenity || 'Unnamed Place',
+            typeRaw: typeRaw, typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            address: addr, lat: loc.lat, lon: loc.lon, phone: tags.phone || tags['contact:phone'] || null,
+            distance: getDistance(latitude, longitude, loc.lat, loc.lon)
+        };
+    }).filter(p => p && p.name !== 'Unnamed Place');
+
+    fetchedPlaces.sort((a, b) => a.distance - b.distance);
+    return fetchedPlaces;
+};
+
+const fetchNearbyDestinationsWithExpansion = async (latitude, longitude, tagsQueryTemplate) => {
+    let fetchedDestinations = [];
+    // Fixed 50km radius for beaches/airports
+    const radiusMeters = 50000; 
+    const filledQuery = tagsQueryTemplate.replace(/{LAT}/g, latitude.toString()).replace(/{LON}/g, longitude.toString()).replace(/{RADIUS}/g, radiusMeters.toString());
+    const query = `[out:json][timeout:60];(${filledQuery});out center;`;
+    
+    const data = await fetchOverpassData(query);
+    if (!data.elements) return [];
+
+    fetchedDestinations = data.elements.map((element) => {
+        const tags = element.tags || {};
+        const loc = element.center || { lat: element.lat, lon: element.lon };
+        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        let type = 'Destination';
+        if (tags.natural === 'beach') type = 'Beach';
+        else if (tags.aeroway === 'aerodrome') type = 'Airport';
+        
+        return {
+            id: String(element.id), name: tags.name || `${type} ID ${element.id}`,
+            typeDisplay: type, lat: loc.lat, lon: loc.lon, distance: getDistance(latitude, longitude, loc.lat, loc.lon)
+        };
+    }).filter(d => d && d.name !== 'Unnamed Place');
+
+    fetchedDestinations.sort((a, b) => a.distance - b.distance);
+    return fetchedDestinations;
+};
+
+const fetchNearbyEmergencyServices = async (latitude, longitude) => {
+    let fetchedServices = [];
+    const queryTags = ['police', 'hospital', 'clinic', 'doctors', 'fire_station'];
+    const queryRegex = `^(${queryTags.join('|')})$`;
+    // Fixed 15km radius for emergency logic
+    const radiusMeters = 15000; 
+    const query = `[out:json][timeout:45];(node["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});way["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude});relation["amenity"~"${queryRegex}"](around:${radiusMeters},${latitude},${longitude}););out center;`;
+    
+    const data = await fetchOverpassData(query);
+    if (!data.elements) return [];
+
+    fetchedServices = data.elements.map((element) => {
+        const tags = element.tags || {};
+        const loc = element.center || { lat: element.lat, lon: element.lon };
+        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        const typeRaw = tags.amenity || tags.emergency || 'unknown';
+        
+        return {
+            id: String(element.id), name: tags.name || typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Emergency Service',
+            typeDisplay: typeRaw.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            lat: loc.lat, lon: loc.lon, distance: getDistance(latitude, longitude, loc.lat, loc.lon)
+        };
+    }).filter(s => s);
+
+    fetchedServices.sort((a, b) => a.distance - b.distance);
+    return fetchedServices;
+};
+
+// Persistent global cache that survives component unmounts! 
+// This makes sure the data stays everywhere in the app.
+const GLOBAL_UTILITIES_CACHE = {
+    location: null,
+    country: null,
+    facilities: {},
+    routes: {},
+    recommended: null,
+    emergency: null,
+    beaches: null,
+    prefetched: false
 };
 
 // --- Main Component ---
@@ -92,6 +196,9 @@ const UtilitiesScreen = () => {
     const [beachCondition, setBeachCondition] = useState(null);
     const [beachSuitability, setBeachSuitability] = useState(null);
 
+    // Link our persistent cache to this component instance
+    const cache = useRef(GLOBAL_UTILITIES_CACHE);
+
     // Google Search Hook/Placeholder - Replace with actual tool call
     // const { search: googleSearch, loading: searchLoading, error: searchError } = useGoogleSearch();
     const googleSearch = async (queries) => {
@@ -122,82 +229,160 @@ const UtilitiesScreen = () => {
     // --- Location & Data Fetching Effect ---
     useEffect(() => {
         const fetchLocationAndData = async (targetPage, targetFilter) => {
-            setLocationLoading(true); setLocationErrorMsg(null); setLocation(null); setLocationCountry(null);
-            setRecommendedErrorMsg(null); setNationalContactsError(null); setDynamicNationalContacts([]); // Reset dynamic contacts
-            if (targetPage === 'facilities') { setFacilitiesData([]); setFacilitiesLoading(true); }
-            if (targetPage === 'routes') { setRoutesData([]); setRoutesLoading(true); }
-            if (targetPage === 'main') { setRecommendedPlaces([]); setRecommendedLoading(true); }
-            if (targetPage === 'contacts') { setNearbyServices([]); setNearbyServicesLoading(true); setNationalContactsLoading(true); } // Load both
+            let fetchedCoords = cache.current.location;
+            let currentCountry = cache.current.country;
 
-            let permStatus; try { let { status } = await Location.requestForegroundPermissionsAsync(); permStatus = status; } catch (permError) { const msg = 'Perm error'; console.error(msg, permError); setLocationErrorMsg(msg); if (targetPage === 'main') setRecommendedErrorMsg(msg); setNationalContactsError(msg); /* Set contact error */ setLocationLoading(false); setFacilitiesLoading(false); setRoutesLoading(false); setRecommendedLoading(false); setNearbyServicesLoading(false); setNationalContactsLoading(false); return; }
-            if (permStatus !== 'granted') { const msg = 'Permission denied.'; setLocationErrorMsg(msg); if (targetPage === 'main') setRecommendedErrorMsg(msg); setNationalContactsError(msg); /* Set contact error */ setLocationLoading(false); setFacilitiesLoading(false); setRoutesLoading(false); setRecommendedLoading(false); setNearbyServicesLoading(false); setNationalContactsLoading(false); return; }
-
-            let fetchedCoords = null;
+            // 1. Fetch Location ONLY if we don't have it
             try {
-                console.log("Getting current position..."); let currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High, timeout: 15000 });
-                fetchedCoords = currentLoc.coords; setLocation(fetchedCoords); setLocationLoading(false); console.log("Loc obtained:", fetchedCoords);
+                if (!fetchedCoords) {
+                    setLocationLoading(true); setLocationErrorMsg(null);
+                    setRecommendedErrorMsg(null); setNationalContactsError(null);
+                
+                try { 
+                    let { status } = await Location.requestForegroundPermissionsAsync(); 
+                    if (status !== 'granted') throw new Error('Permission denied.');
+                } catch (e) { 
+                    const msg = 'Location perm error'; setLocationErrorMsg(msg); 
+                    setRecommendedErrorMsg(msg); setNationalContactsError(msg); 
+                    setLocationLoading(false); return; 
+                }
 
-                // --- Reverse Geocode to get Country ---
-                let country = null;
+                try {
+                    console.log("Getting fast position...");
+                    let currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced, timeout: 5000 });
+                    fetchedCoords = currentLoc.coords;
+                    cache.current.location = fetchedCoords;
+                    setLocation(fetchedCoords);
+                } catch (e) { console.warn("GPS error", e); setLocationErrorMsg('No coords.'); setLocationLoading(false); return; }
+
                 if (fetchedCoords) {
                     try {
-                        console.log("Reverse geocoding..."); let addresses = await Location.reverseGeocodeAsync(fetchedCoords);
+                        let addresses = await Location.reverseGeocodeAsync(fetchedCoords);
                         if (addresses && addresses.length > 0) {
-                            country = addresses[0].country; // Get country name
-                            setLocationCountry(country);
-                            console.log("Country:", country);
-                        } else { console.log("Reverse geocoding returned empty."); }
-                    } catch (geocodeError) { console.error("Reverse geocoding error:", geocodeError); setLocationErrorMsg("Could not determine country."); setNationalContactsError("Could not determine country for helplines."); } // Set contact error
-                } else { const msg = 'No coords.'; setLocationErrorMsg(msg); if (targetPage === 'main') setRecommendedErrorMsg(msg); setNationalContactsError(msg); /* Set contact error */ }
-
-                // --- Fetch Page-Specific Data ---
-                if (fetchedCoords) {
-                    if (targetPage === 'main') { const recTags = getRecommendedApiTagsForQuery(); const recs = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, recTags, recTags, 5, 20, 5); setRecommendedPlaces(recs.slice(0, 5)); }
-                    else if (targetPage === 'facilities') { const qTags = getAllFacilityApiTagsForQuery(); const fTags = facilityFilterCategories[targetFilter]?.tags || []; const places = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags, fTags); setFacilitiesData(places); }
-                    else if (targetPage === 'routes') { const qTemplate = routeFilterCategories[targetFilter]?.tagsQuery; if (qTemplate) { const dests = await fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate); setRoutesData(dests); } else { setRoutesData([]); } }
-                    else if (targetPage === 'beaches') {
-                        // Load beaches from backend (optionally filtered by beachSearch)
-                        try {
-                            setBeachesLoading(true);
-                            const params = beachSearch ? { search: beachSearch } : {};
-                            const resp = await beachesAPI.getAll(params);
-                            const list = Array.isArray(resp) ? resp : (resp?.results || resp?.data || []);
-                            setBeachesData(list || []);
-                        } catch (err) {
-                            console.error('Failed to load beaches from backend:', err);
-                        } finally {
-                            setBeachesLoading(false);
+                            currentCountry = addresses[0].country;
+                            cache.current.country = currentCountry;
+                            setLocationCountry(currentCountry);
                         }
-                    }
-                    else if (targetPage === 'contacts') {
-                        // Fetch nearby services (police stations, hospitals etc.)
-                        const services = await fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude);
-                        setNearbyServices(services);
-                        setNearbyServicesLoading(false); // Nearby done
+                    } catch (e) {}
+                }
+                setLocationLoading(false);
+            } else {
+                // Instantly restore from cache
+                setLocation(fetchedCoords);
+                setLocationCountry(currentCountry);
+            }
 
-                        // --- Fetch National Numbers via Search ---
-                        if (country) {
+            if (!fetchedCoords) return;
+
+            // --- Background Prefetching ---
+            // If this is our first time getting location, secretly fetch all major tabs in the background!
+            if (!cache.current.prefetched) {
+                cache.current.prefetched = true;
+                console.log("Starting silent background prefetch of all Utilities...");
+                
+                if (!cache.current.facilities['All']) {
+                    const qTags = getAllFacilityApiTagsForQuery();
+                    fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags, [])
+                        .then(d => { cache.current.facilities['All'] = d; if (page === 'facilities' && activeFacilityFilter === 'All') setFacilitiesData(d); setFacilitiesLoading(false); })
+                        .catch(e => console.log('Prefetch err facilities', e));
+                }
+                if (!cache.current.routes['All']) {
+                    const qTemplate = routeFilterCategories['All']?.tagsQuery;
+                    if (qTemplate) {
+                        fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate)
+                            .then(d => { cache.current.routes['All'] = d; if (page === 'routes' && activeRouteFilter === 'All') setRoutesData(d); setRoutesLoading(false); })
+                            .catch(e => console.log('Prefetch err routes', e));
+                    }
+                }
+                if (!cache.current.emergency) {
+                    fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude)
+                        .then(d => { cache.current.emergency = d; if (page === 'contacts') setNearbyServices(d); setNearbyServicesLoading(false); })
+                        .catch(e => console.log('Prefetch err emergency', e));
+                }
+                // Prefetch backend beaches
+                if (!cache.current.beaches) {
+                    beachesAPI.getAll({}).then(resp => {
+                        const list = Array.isArray(resp) ? resp : (resp?.results || resp?.data || []);
+                        cache.current.beaches = list;
+                        if (page === 'beaches') setBeachesData(list);
+                        setBeachesLoading(false);
+                    }).catch(e => console.log('Prefetch err beaches', e));
+                }
+            }
+
+            // 2. Fetch Tab Data (Using Cache)
+            if (targetPage === 'main') { 
+                if (cache.current.recommended) { setRecommendedPlaces(cache.current.recommended); return; }
+                setRecommendedLoading(true); setRecommendedPlaces([]);
+                const recTags = getRecommendedApiTagsForQuery(); 
+                const recs = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, recTags, recTags); 
+                cache.current.recommended = recs.slice(0, 5);
+                setRecommendedPlaces(cache.current.recommended);
+                setRecommendedLoading(false);
+            }
+            else if (targetPage === 'facilities') { 
+                if (cache.current.facilities[targetFilter]) { setFacilitiesData(cache.current.facilities[targetFilter]); return; }
+                setFacilitiesLoading(true); setFacilitiesData([]);
+                const qTags = getAllFacilityApiTagsForQuery(); 
+                const fTags = facilityFilterCategories[targetFilter]?.tags || []; 
+                const places = await fetchNearbyFacilitiesWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTags, fTags); 
+                cache.current.facilities[targetFilter] = places;
+                setFacilitiesData(places);
+                setFacilitiesLoading(false);
+            }
+            else if (targetPage === 'routes') { 
+                if (cache.current.routes[targetFilter]) { setRoutesData(cache.current.routes[targetFilter]); return; }
+                setRoutesLoading(true); setRoutesData([]);
+                const qTemplate = routeFilterCategories[targetFilter]?.tagsQuery; 
+                if (qTemplate) { 
+                    const dests = await fetchNearbyDestinationsWithExpansion(fetchedCoords.latitude, fetchedCoords.longitude, qTemplate); 
+                    cache.current.routes[targetFilter] = dests;
+                    setRoutesData(dests);
+                } else { setRoutesData([]); }
+                setRoutesLoading(false);
+            }
+            else if (targetPage === 'beaches') {
+                if (cache.current.beaches) { setBeachesData(cache.current.beaches); return; }
+                try {
+                    setBeachesLoading(true);
+                    const params = beachSearch ? { search: beachSearch } : {};
+                    const resp = await beachesAPI.getAll(params);
+                    const list = Array.isArray(resp) ? resp : (resp?.results || resp?.data || []);
+                    if (!beachSearch) cache.current.beaches = list; // Only cache base list
+                    setBeachesData(list || []);
+                } catch (err) { console.error('Beaches error:', err); } 
+                finally { setBeachesLoading(false); }
+            }
+            else if (targetPage === 'contacts') {
+                if (cache.current.emergency) { setNearbyServices(cache.current.emergency); }
+                else {
+                    setNearbyServicesLoading(true); setNearbyServices([]);
+                    const services = await fetchNearbyEmergencyServices(fetchedCoords.latitude, fetchedCoords.longitude);
+                    cache.current.emergency = services;
+                    setNearbyServices(services);
+                    setNearbyServicesLoading(false);
+                }
+
+                // --- Fetch National Numbers via Search ---
+                if (currentCountry && Object.keys(dynamicNationalContacts).length === 0) {
                             const searchQueries = [
-                                `national police emergency number ${country}`,
-                                `national ambulance emergency number ${country}`,
-                                `national fire emergency number ${country}`,
+                                `national police emergency number ${currentCountry}`,
+                                `national ambulance emergency number ${currentCountry}`,
+                                `national fire emergency number ${currentCountry}`,
                             ];
                             try {
-                                console.log("Searching for national numbers...");
-                                const searchResults = await googleSearch(searchQueries); // Use the imported/provided search function
-                                // Basic parsing - assumes first result snippet might contain the number
-                                // **Needs refinement based on actual google_search tool output**
+                                console.log("Searching for national numbers in", currentCountry);
+                                const searchResults = await googleSearch(searchQueries); 
                                 const dynamicContacts = searchResults.map((resp, index) => {
                                     let type = index === 0 ? 'Police' : index === 1 ? 'Ambulance' : 'Fire';
                                     const firstResult = resp.results?.[0];
                                     return {
                                         id: `dyn-${index}`,
-                                        name: `${type} (${country})`,
+                                        name: `${type} (${currentCountry})`,
                                         role: 'National (Searched)',
-                                        // Attempt to extract number-like patterns, VERY basic
                                         phone: firstResult?.snippet?.match(/(\b\d{2,4}\b|\b\d{3}[-\s]?\d{3,}\b)/)?.[0] || 'See search result',
                                         note: firstResult?.snippet || 'No details found.',
-                                        link: firstResult?.link, // Include link if available
+                                        link: firstResult?.link, 
                                     };
                                 });
                                 setDynamicNationalContacts(dynamicContacts);
@@ -205,27 +390,44 @@ const UtilitiesScreen = () => {
                             } catch (searchError) {
                                 console.error("Google Search error:", searchError);
                                 setNationalContactsError("Could not search for national numbers.");
-                                setDynamicNationalContacts([]); // Clear on error
+                                setDynamicNationalContacts([]); 
                             } finally {
                                 setNationalContactsLoading(false);
                             }
-                        } else {
+                        } else if (!currentCountry) {
                             // If country couldn't be determined
                             setNationalContactsError("Could not determine country to search numbers.");
                             setNationalContactsLoading(false);
+                        } else {
+                            setNationalContactsLoading(false); // We already have national numbers
                         }
                     }
+            } catch (error) {
+                console.error("Err fetchLocationAndData:", error);
+                const msg = error.code === 'E_LOCATION_TIMEOUT' ? 'Loc timeout.' : 'Fetch failed.';
+                setLocationErrorMsg(msg);
+                if (targetPage === 'main') setRecommendedErrorMsg(msg);
+                setNationalContactsError(msg);
+            } finally {
+                // Ensure all loading states are cleared for the target page
+                setLocationLoading(false);
+                if (targetPage === 'facilities') setFacilitiesLoading(false);
+                if (targetPage === 'routes') setRoutesLoading(false);
+                if (targetPage === 'main') setRecommendedLoading(false);
+                if (targetPage === 'contacts') {
+                    setNearbyServicesLoading(false);
+                    setNationalContactsLoading(false);
                 }
-            } catch (error) { /* ... error handling ... */ console.error("Err fetchLocationAndData:", error); const msg = error.code === 'E_LOCATION_TIMEOUT' ? 'Loc timeout.' : 'Fetch failed.'; setLocationErrorMsg(msg); if (targetPage === 'main') setRecommendedErrorMsg(msg); setNationalContactsError(msg); setLocationLoading(false);
-            } finally { /* ... turn off loading states ... */ if (targetPage === 'facilities') setFacilitiesLoading(false); if (targetPage === 'routes') setRoutesLoading(false); if (targetPage === 'main') setRecommendedLoading(false); if (targetPage === 'contacts') { setNearbyServicesLoading(false); setNationalContactsLoading(false); } }
+                if (targetPage === 'beaches') setBeachesLoading(false);
+            }
         };
 
         if (page === 'facilities' || page === 'routes' || page === 'main' || page === 'contacts') { fetchLocationAndData(page, page === 'facilities' ? activeFacilityFilter : (page === 'routes' ? activeRouteFilter : null)); }
-        else { /* ... reset state ... */ setLocation(null); setLocationErrorMsg(null); setLocationLoading(false); setLocationCountry(null); setFacilitiesData([]); setFacilitiesLoading(false); setActiveFacilityFilter('All'); setRoutesData([]); setRoutesLoading(false); setActiveRouteFilter('All'); setRecommendedPlaces([]); setRecommendedLoading(false); setRecommendedErrorMsg(null); setNearbyServices([]); setNearbyServicesLoading(false); setDynamicNationalContacts([]); setNationalContactsLoading(false); setNationalContactsError(null); }
+        else { setLocation(null); setLocationErrorMsg(null); setLocationLoading(false); setLocationCountry(null); setFacilitiesData([]); setFacilitiesLoading(false); setActiveFacilityFilter('All'); setRoutesData([]); setRoutesLoading(false); setActiveRouteFilter('All'); setRecommendedPlaces([]); setRecommendedLoading(false); setRecommendedErrorMsg(null); setNearbyServices([]); setNearbyServicesLoading(false); setDynamicNationalContacts([]); setNationalContactsLoading(false); setNationalContactsError(null); }
     }, [page, activeFacilityFilter, activeRouteFilter]); // Dependencies
 
     // --- Header ---
-    const Header = ({ title }) => ( /* ... no change ... */ <View style={styles.header}>{page !== 'main' && (<TouchableOpacity style={styles.headerBack} onPress={() => setPage('main')}> <Text style={styles.backText}>←</Text> </TouchableOpacity>)}<Text style={styles.headerTitle}>{title}</Text></View>);
+    const Header = ({ title }) => (<View style={styles.header}>{page !== 'main' && (<TouchableOpacity style={styles.headerBack} onPress={() => setPage('main')}><Text style={styles.backText}>←</Text></TouchableOpacity>)}<Text style={styles.headerTitle}>{title}</Text></View>);
     // --- Static Data ---
     // Keep mainUtilities for navigation, but contacts list is now dynamic + nearby
     const mainUtilities = [ /* ... Use icons ... */ { id: 1, title: 'Nearby Facilities', description: 'Find hotels, hospitals, shops...', page: 'facilities', icon: '🛠️' }, { id: 2, title: 'Find Destinations', description: 'Get directions to beaches & airports.', page: 'routes', icon: '🗺️' }, { id: 4, title: 'Search Beaches', description: 'Search beaches from backend and view live info', page: 'beaches', icon: '🏝️' }, { id: 3, title: 'Emergency Info', description: 'National numbers & nearby services.', page: 'contacts', icon: '📞' },];
@@ -238,19 +440,19 @@ const UtilitiesScreen = () => {
     const handleSearch = () => { /* ... no change ... */ if (page === 'main' && searchQuery.trim()) { const l = searchQuery.toLowerCase(); if (l.includes('beach') || l.includes('airport')) { setPage('routes'); setActiveRouteFilter(l.includes('beach') ? 'Beaches' : 'Airports'); setRouteSearch(searchQuery.trim()); } else if (facilityFilterCategories.Hotels.tags.some(t => l.includes(t)) || l.includes('stay') || l.includes('lodge')) { setPage('facilities'); setActiveFacilityFilter('Hotels'); setFacSearch(searchQuery.trim()); } else if (facilityFilterCategories.Restaurants.tags.some(t => l.includes(t)) || l.includes('food') || l.includes('eat')) { setPage('facilities'); setActiveFacilityFilter('Restaurants'); setFacSearch(searchQuery.trim()); } else if (facilityFilterCategories.Hospitals.tags.some(t => l.includes(t)) || l.includes('doctor') || l.includes('medical')) { setPage('facilities'); setActiveFacilityFilter('Hospitals'); setFacSearch(searchQuery.trim()); } else if (facilityFilterCategories.Pharmacies.tags.some(t => l.includes(t)) || l.includes('medicine')) { setPage('facilities'); setActiveFacilityFilter('Pharmacies'); setFacSearch(searchQuery.trim()); } else if (facilityFilterCategories.Supermarkets.tags.some(t => l.includes(t)) || l.includes('grocery') || l.includes('shop')) { setPage('facilities'); setActiveFacilityFilter('Supermarkets'); setFacSearch(searchQuery.trim()); } else if (l.includes('contact') || l.includes('emergency') || l.includes('police') || l.includes('ambulance') || l.includes('fire')) { setPage('contacts'); setContactSearch(searchQuery.trim()); } else { setPage('facilities'); setActiveFacilityFilter('All'); setFacSearch(searchQuery.trim()); } } };
 
     // --- Render Functions ---
-    const renderMain = () => { /* ... (no structural change) ... */
+    const renderMain = () => {
         const recommendedHotelAndFood = recommendedPlaces;
-        return (<View style={styles.container}> <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}> <View style={styles.searchContainer}> <TextInput style={styles.searchInputMain} placeholder="Search nearby hotels, food, beaches..." value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={handleSearch} returnKeyType="search" /> <TouchableOpacity style={[styles.searchButton, !searchQuery.trim() && styles.searchButtonDisabled]} onPress={handleSearch} disabled={!searchQuery.trim()}> <Text style={styles.searchButtonText}>🔍</Text> </TouchableOpacity> </View> <Text style={styles.titleMain}>Beach Utilities</Text> <View style={styles.categoriesContainer}> {mainUtilities.map((utility) => (<TouchableOpacity key={utility.id} style={styles.categoryCard} onPress={() => setPage(utility.page)}> <View style={styles.categoryIconContainer}><Text style={styles.categoryIcon}>{utility.icon || '❔'}</Text></View> <View style={styles.categoryInfo}> <Text style={styles.categoryTitle}>{utility.title}</Text> <Text style={styles.categoryDescription}>{utility.description}</Text> </View> </TouchableOpacity>))} </View> <View style={styles.additionalSection}> <Text style={styles.sectionTitle}>Recommended Nearby</Text> {recommendedLoading && <ActivityIndicator size="small" color="#01579B" style={{ marginTop: 10, alignSelf: 'center' }} />} {(recommendedErrorMsg || locationErrorMsg) && !recommendedLoading && <Text style={styles.errorTextSmall}>{recommendedErrorMsg || locationErrorMsg}</Text>} {!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length > 0 && (<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendedScroll}> {recommendedHotelAndFood.map((place) => { let icon = '📍'; if (facilityFilterCategories.Hotels.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Hotels.icon; else if (facilityFilterCategories.Restaurants.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Restaurants.icon; return (<TouchableOpacity key={place.id} style={styles.recommendCardLarge} onPress={() => { setPage('facilities'); const catKey = Object.keys(facilityFilterCategories).find(k => facilityFilterCategories[k].tags.includes(place.typeRaw)) || 'All'; setActiveFacilityFilter(catKey); setFacSearch(place.name); }}> <View style={styles.recommendImageLarge}><Text style={styles.recommendImageText}>{icon}</Text></View> <View style={styles.recommendInfoLarge}> <Text style={styles.recommendTitleLarge} numberOfLines={1}>{place.name}</Text> <Text style={styles.recommendDistanceLarge}>📍 {place.distance.toFixed(1)} km</Text> <Text style={styles.recommendTypeLarge}>{place.typeDisplay}</Text> </View> </TouchableOpacity>); })} </ScrollView>)} {!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length === 0 && (<Text style={styles.noResultsSmall}>No recommended hotels/eateries found nearby or location unavailable.</Text>)} </View> </ScrollView> </View>);
+        return (<View style={styles.container}><ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}><View style={styles.searchContainer}><TextInput style={styles.searchInputMain} placeholder="Search nearby hotels, food, beaches..." value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={handleSearch} returnKeyType="search" /><TouchableOpacity style={[styles.searchButton, !searchQuery.trim() ? styles.searchButtonDisabled : null]} onPress={handleSearch} disabled={!searchQuery.trim()}><Text style={styles.searchButtonText}>🔍</Text></TouchableOpacity></View><Text style={styles.titleMain}>Beach Utilities</Text><View style={styles.categoriesContainer}>{mainUtilities.map((utility) => (<TouchableOpacity key={utility.id} style={styles.categoryCard} onPress={() => setPage(utility.page)}><View style={styles.categoryIconContainer}><Text style={styles.categoryIcon}>{utility.icon || '❔'}</Text></View><View style={styles.categoryInfo}><Text style={styles.categoryTitle}>{utility.title}</Text><Text style={styles.categoryDescription}>{utility.description}</Text></View></TouchableOpacity>))}</View><View style={styles.additionalSection}><Text style={styles.sectionTitle}>Recommended Nearby</Text>{recommendedLoading ? <ActivityIndicator size="small" color="#01579B" style={{ marginTop: 10, alignSelf: 'center' }} /> : null}{(recommendedErrorMsg || locationErrorMsg) && !recommendedLoading ? <Text style={styles.errorTextSmall}>{recommendedErrorMsg || locationErrorMsg}</Text> : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length > 0 ? (<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendedScroll}>{recommendedHotelAndFood.map((place) => { let icon = '📍'; if (facilityFilterCategories.Hotels.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Hotels.icon; else if (facilityFilterCategories.Restaurants.tags.includes(place.typeRaw)) icon = facilityFilterCategories.Restaurants.icon; return (<TouchableOpacity key={place.id} style={styles.recommendCardLarge} onPress={() => { setPage('facilities'); const catKey = Object.keys(facilityFilterCategories).find(k => facilityFilterCategories[k].tags.includes(place.typeRaw)) || 'All'; setActiveFacilityFilter(catKey); setFacSearch(place.name); }}><View style={styles.recommendImageLarge}><Text style={styles.recommendImageText}>{icon}</Text></View><View style={styles.recommendInfoLarge}><Text style={styles.recommendTitleLarge} numberOfLines={1}>{place.name}</Text><Text style={styles.recommendDistanceLarge}>📍 {place.distance.toFixed(1)} km</Text><Text style={styles.recommendTypeLarge}>{place.typeDisplay}</Text></View></TouchableOpacity>); })}</ScrollView>) : null}{!recommendedLoading && !recommendedErrorMsg && !locationErrorMsg && recommendedHotelAndFood.length === 0 ? (<Text style={styles.noResultsSmall}>No recommended hotels/eateries found nearby or location unavailable.</Text>) : null}</View></ScrollView></View>);
     };
-    const renderFacilities = () => { /* ... (no structural change) ... */
+    const renderFacilities = () => {
         const textFilteredData = facilitiesData.filter((f) => f && `${f.name || ''} ${f.typeDisplay || ''} ${f.address || ''}`.toLowerCase().includes(facSearch.trim().toLowerCase()));
-        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}> <View style={{ flex: 1, marginRight: 8 }}> <Text style={styles.itemTitle}>{item.name || 'Unnamed'}<Text> </Text><Text style={styles.badge}>{item.typeDisplay || 'Facility'}</Text></Text> <Text style={styles.itemSub}>{item.address || 'Address not available'}</Text> {item.distance !== undefined && (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>)} </View> <View style={styles.itemButtons}> <TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}> <Text style={styles.smallButtonText}>🗺️ Map</Text> </TouchableOpacity> <TouchableOpacity style={[styles.smallButton, !item.phone && styles.buttonDisabled]} onPress={() => item.phone && callNumber(item.phone)} disabled={!item.phone} > <Text style={styles.smallButtonText}>📞 Call</Text> </TouchableOpacity> <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => shareText(`${item.name} - ${item.address}${item.phone ? ' - ' + item.phone : ''}`)}> <Text style={styles.smallButtonSecText}>Share</Text> </TouchableOpacity> </View> </View>); };
-        return (<View style={styles.subContainer}> <Header title="Nearby Facilities" /> <TextInput placeholder="Filter nearby facilities..." style={styles.searchInputSub} value={facSearch} onChangeText={setFacSearch} clearButtonMode="while-editing" /> <View style={styles.filterContainer}> {Object.entries(facilityFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeFacilityFilter === key && styles.filterButtonActive]} onPress={() => setActiveFacilityFilter(key)} > <Text style={styles.filterButtonIcon}>{icon}</Text> <Text style={[styles.filterButtonText, activeFacilityFilter === key && styles.filterButtonTextActive]}>{key}</Text> </TouchableOpacity>))} </View> {(locationLoading || facilitiesLoading) && <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} />} {locationErrorMsg && !(locationLoading || facilitiesLoading) && <Text style={styles.errorText}>{locationErrorMsg}</Text>} {!(locationLoading || facilitiesLoading) && !locationErrorMsg && (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}> {facilitiesData.length === 0 && !facSearch ? 'No facilities found for filter.' : 'No facilities match filter/search.'} </Text>} />)} </View>);
+        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity></View></View>); };
+        return (<View style={styles.subContainer}><Header title="Nearby Facilities" /><TextInput placeholder="Filter nearby facilities..." style={styles.searchInputSub} value={facSearch} onChangeText={setFacSearch} clearButtonMode="while-editing" /><View style={styles.filterContainer}>{Object.entries(facilityFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeFacilityFilter === key ? styles.filterButtonActive : null]} onPress={() => setActiveFacilityFilter(key)}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeFacilityFilter === key ? styles.filterButtonTextActive : null]}>{key}</Text></TouchableOpacity>))}</View>{locationLoading || facilitiesLoading ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}{locationErrorMsg && !(locationLoading || facilitiesLoading) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}{!(locationLoading || facilitiesLoading) && !locationErrorMsg ? (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}>{facilitiesData.length === 0 && !facSearch ? 'No facilities found for filter.' : 'No facilities match filter/search.'}</Text>} />) : null}</View>);
     };
-    const renderRoutes = () => { /* ... (no structural change) ... */
+    const renderRoutes = () => {
         const textFilteredData = routesData.filter((dest) => dest && `${dest.name || ''} ${dest.typeDisplay || ''}`.toLowerCase().includes(routeSearch.trim().toLowerCase()));
-        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}> <View style={{ flex: 1, marginRight: 8 }}> <Text style={styles.itemTitle}>{`${item.name || 'Unnamed Destination'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text> {item.distance !== undefined && (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>)} </View> <View style={styles.itemButtons}> <TouchableOpacity style={styles.smallButton} onPress={() => openDirections(item.lat, item.lon, item.name)}> <Text style={styles.smallButtonText}>▶️ Directions</Text> </TouchableOpacity> <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => shareText(`${item.name} - Loc: ${item.lat},${item.lon}`)}> <Text style={styles.smallButtonSecText}>Share</Text> </TouchableOpacity> </View> </View>); };
-        return (<View style={styles.subContainer}> <Header title="Find Routes To..." /> <TextInput placeholder="Filter nearby beaches or airports..." style={styles.searchInputSub} value={routeSearch} onChangeText={setRouteSearch} clearButtonMode="while-editing" /> <View style={styles.filterContainer}> {Object.entries(routeFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeRouteFilter === key && styles.filterButtonActive]} onPress={() => setActiveRouteFilter(key)} > <Text style={styles.filterButtonIcon}>{icon}</Text> <Text style={[styles.filterButtonText, activeRouteFilter === key && styles.filterButtonTextActive]}>{key}</Text> </TouchableOpacity>))} </View> {(locationLoading || routesLoading) && <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} />} {locationErrorMsg && !(locationLoading || routesLoading) && <Text style={styles.errorText}>{locationErrorMsg}</Text>} {!(locationLoading || routesLoading) && !locationErrorMsg && (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}> {routesData.length === 0 && !routeSearch ? `No ${activeRouteFilter !== 'All' ? activeRouteFilter.toLowerCase() : 'destinations'} found.` : 'No destinations match filter/search.'} </Text>} />)} </View>);
+        const renderItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || 'Unnamed Destination'}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Place'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openDirections(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>▶️ Directions</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => shareText(`${item.name} - Loc: ${item.lat},${item.lon}`)}><Text style={styles.smallButtonSecText}>Share</Text></TouchableOpacity></View></View>); };
+        return (<View style={styles.subContainer}><Header title="Find Routes To..." /><TextInput placeholder="Filter nearby beaches or airports..." style={styles.searchInputSub} value={routeSearch} onChangeText={setRouteSearch} clearButtonMode="while-editing" /><View style={styles.filterContainer}>{Object.entries(routeFilterCategories).map(([key, { icon }]) => (<TouchableOpacity key={key} style={[styles.filterButton, activeRouteFilter === key && styles.filterButtonActive]} onPress={() => setActiveRouteFilter(key)}><Text style={styles.filterButtonIcon}>{icon}</Text><Text style={[styles.filterButtonText, activeRouteFilter === key && styles.filterButtonTextActive]}>{key}</Text></TouchableOpacity>))}</View>{(locationLoading || routesLoading) ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}{locationErrorMsg && !(locationLoading || routesLoading) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}{!(locationLoading || routesLoading) && !locationErrorMsg ? (<FlatList data={textFilteredData} keyExtractor={(item) => item.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 60 }} ListEmptyComponent={<Text style={styles.noResults}>{routesData.length === 0 && !routeSearch ? `No ${activeRouteFilter !== 'All' ? activeRouteFilter.toLowerCase() : 'destinations'} found.` : 'No destinations match filter/search.'}</Text>} />) : null}</View>);
     };
 
     // --- New: Render Beaches (backend search) ---
@@ -261,7 +463,7 @@ const UtilitiesScreen = () => {
                 <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.itemTitle}>{item.name || 'Unnamed Beach'}<Text> </Text><Text style={styles.badge}>{item.state || ''}</Text></Text>
                     <Text style={styles.itemSub}>{item.description || ''}</Text>
-                    {item.latitude && item.longitude && <Text style={styles.itemDistance}>📍 {item.latitude.toFixed(3)}, {item.longitude.toFixed(3)}</Text>}
+                    {item.latitude && item.longitude ? <Text style={styles.itemDistance}>📍 {item.latitude.toFixed(3)}, {item.longitude.toFixed(3)}</Text> : null}
                 </View>
                 <View style={styles.itemButtons}>
                     <TouchableOpacity style={styles.smallButton} onPress={async () => {
@@ -299,13 +501,13 @@ const UtilitiesScreen = () => {
             <View style={styles.subContainer}>
                 <Header title="Search Beaches" />
                 <TextInput placeholder="Search beaches by name or state..." style={styles.searchInputSub} value={beachSearch} onChangeText={setBeachSearch} clearButtonMode="while-editing" onSubmitEditing={() => { setPage('beaches'); }} />
-                {beachesLoading && <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} />}
-                {!beachesLoading && !beachesData?.length && <Text style={styles.noResultsSmall}>No beaches found.</Text>}
-                {!beachesLoading && beachesData?.length > 0 && (
+                {beachesLoading ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}
+                {!beachesLoading && !beachesData?.length ? <Text style={styles.noResultsSmall}>No beaches found.</Text> : null}
+                {!beachesLoading && beachesData?.length > 0 ? (
                     <FlatList data={filtered} keyExtractor={(i) => i._id || i.id || i.name} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 100 }} />
-                )}
+                ) : null}
 
-                {selectedBeach && (
+                {selectedBeach ? (
                     <View style={styles.details}>
                         <Text style={styles.detailsTitle}>{selectedBeach.name}</Text>
                         <Text style={styles.detailsLine}>Weather: {beachWeather ? `${beachWeather.temperature ?? '--'}°C, ${beachWeather.condition ?? '--'}` : '—'}</Text>
@@ -316,7 +518,7 @@ const UtilitiesScreen = () => {
                             <Text style={styles.openButtonText}>Open in Maps</Text>
                         </TouchableOpacity>
                     </View>
-                )}
+                ) : null}
             </View>
         );
     };
@@ -340,33 +542,33 @@ const UtilitiesScreen = () => {
                     <View style={{ flex: 1, marginRight: 8 }}>
                         <Text style={styles.itemTitle}>{item.name || 'Emergency Info'}</Text>
                         <Text style={styles.itemSub}>{item.note || 'No details'}</Text>
-                        {item.phone && item.phone !== 'See search result' && (
+                        {item.phone && item.phone !== 'See search result' ? (
                             <Text style={styles.itemSmall}>Number: {item.phone}</Text>
-                        )}
+                        ) : null}
                     </View>
                     <View style={styles.itemButtons}>
-                        {item.phone && item.phone !== 'See search result' && (
+                        {item.phone && item.phone !== 'See search result' ? (
                             <TouchableOpacity style={styles.smallButton} onPress={() => callNumber(item.phone)}>
                                 <Text style={styles.smallButtonText}>📞 Call</Text>
                             </TouchableOpacity>
-                        )}
+                        ) : null}
                         {/* Optional: Add button to open search link if available */}
-                        {item.link && item.link !== '#' && (
+                        {item.link && item.link !== '#' ? (
                             <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => Linking.openURL(item.link)}>
                                 <Text style={styles.smallButtonSecText}>🌐 View</Text>
                             </TouchableOpacity>
-                        )}
-                        {!item.link && item.phone === 'See search result' && (
+                        ) : null}
+                        {!item.link && item.phone === 'See search result' ? (
                             <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openWebSearch(item.name)}>
                                 <Text style={styles.smallButtonSecText}>🌐 Search</Text>
                             </TouchableOpacity>
-                        )}
+                        ) : null}
                     </View>
                 </View>
             );
         };
 
-        const renderNearbyItem = ({ item }) => { /* ... (no structural change) ... */ if (!item) return null; return (<View style={styles.listItem}> <View style={{ flex: 1, marginRight: 8 }}> <Text style={styles.itemTitle}>{`${item.name || ''}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Service'}`}</Text></Text> {item.distance !== undefined && (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>)} </View> <View style={styles.itemButtons}> <TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}> <Text style={styles.smallButtonText}>🗺️ Map</Text> </TouchableOpacity> <TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openWebSearch(`${item.name} ${item.typeDisplay} phone number`)}> <Text style={styles.smallButtonSecText}>🌐 Search</Text> </TouchableOpacity> </View> </View>); };
+        const renderNearbyItem = ({ item }) => { if (!item) return null; return (<View style={styles.listItem}><View style={{ flex: 1, marginRight: 8 }}><Text style={styles.itemTitle}>{`${item.name || ''}`}<Text> </Text><Text style={styles.badge}>{`${item.typeDisplay || 'Service'}`}</Text></Text>{item.distance !== undefined ? (<Text style={styles.itemDistance}>📍 Approx. {item.distance.toFixed(1)} km</Text>) : null}</View><View style={styles.itemButtons}><TouchableOpacity style={styles.smallButton} onPress={() => openMapAt(item.lat, item.lon, item.name)}><Text style={styles.smallButtonText}>🗺️ Map</Text></TouchableOpacity><TouchableOpacity style={styles.smallButtonSecondary} onPress={() => openWebSearch(`${item.name} ${item.typeDisplay} phone number`)}><Text style={styles.smallButtonSecText}>🌐 Search</Text></TouchableOpacity></View></View>); };
 
         return (
             <ScrollView style={styles.subContainerScrollView} contentContainerStyle={styles.subContentScrollView}>
@@ -375,26 +577,26 @@ const UtilitiesScreen = () => {
 
                 {/* Dynamically Fetched National Helplines Section */}
                 <Text style={styles.sectionTitleSmall}>National Helplines ({locationCountry || '...'})</Text>
-                {nationalContactsLoading && <ActivityIndicator size="small" color="#01579B" />}
-                {nationalContactsError && !nationalContactsLoading && <Text style={styles.errorTextSmall}>{nationalContactsError}</Text>}
-                {!nationalContactsLoading && !nationalContactsError && (
+                {nationalContactsLoading ? <ActivityIndicator size="small" color="#01579B" /> : null}
+                {nationalContactsError && !nationalContactsLoading ? <Text style={styles.errorTextSmall}>{nationalContactsError}</Text> : null}
+                {!nationalContactsLoading && !nationalContactsError ? (
                     filteredDynamicNational.length === 0 && contactSearch ? (<Text style={styles.noResultsSmall}>No national results match search.</Text>) :
                         filteredDynamicNational.length === 0 && !contactSearch ? (<Text style={styles.noResultsSmall}>Could not find national numbers via search.</Text>) :
                             (<FlatList data={filteredDynamicNational} keyExtractor={(i) => i.id} renderItem={renderDynamicNationalItem} scrollEnabled={false} />)
-                )}
+                ) : null}
 
 
                 {/* Nearby Services Section */}
                 <Text style={styles.sectionTitleSmall}>Nearby Services (Police, Hospital, Fire)</Text>
-                {(locationLoading || nearbyServicesLoading) && <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} />}
+                {(locationLoading || nearbyServicesLoading) ? <ActivityIndicator size="large" color="#01579B" style={{ marginVertical: 20 }} /> : null}
                 {/* Display location error only if not showing national contact error */}
-                {locationErrorMsg && !(locationLoading || nearbyServicesLoading || nationalContactsError) && <Text style={styles.errorText}>{locationErrorMsg}</Text>}
-                {!locationLoading && !nearbyServicesLoading && !locationErrorMsg && location && (
+                {locationErrorMsg && !(locationLoading || nearbyServicesLoading || nationalContactsError) ? <Text style={styles.errorText}>{locationErrorMsg}</Text> : null}
+                {!locationLoading && !nearbyServicesLoading && !locationErrorMsg && location ? (
                     filteredNearby.length === 0 && !contactSearch ? (<Text style={styles.noResultsSmall}>No nearby emergency services found.</Text>) :
                         filteredNearby.length === 0 && contactSearch ? (<Text style={styles.noResultsSmall}>No nearby services match search.</Text>) :
                             (<FlatList data={filteredNearby} keyExtractor={(i) => i.id} renderItem={renderNearbyItem} scrollEnabled={false} />)
-                )}
-                {!locationLoading && !nearbyServicesLoading && !location && !locationErrorMsg && (<Text style={styles.noResultsSmall}>Location needed for nearby services.</Text>)}
+                ) : null}
+                {!locationLoading && !nearbyServicesLoading && !location && !locationErrorMsg ? (<Text style={styles.noResultsSmall}>Location needed for nearby services.</Text>) : null}
 
             </ScrollView>
         );

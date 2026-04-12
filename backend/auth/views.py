@@ -4,6 +4,9 @@ from rest_framework import status
 from .models import User
 from .serializers import UserSerializer, UserPublicSerializer, LoginSerializer
 import hashlib
+from django.core.files.storage import default_storage
+import os
+from bson.objectid import ObjectId
 
 
 @api_view(['POST', 'OPTIONS'])
@@ -83,7 +86,7 @@ def login(request):
 def get_user(request, user_id):
     """Get user by ID"""
     try:
-        user = User.objects.get(_id=user_id)
+        user = User.objects.get(_id=ObjectId(user_id))
         serializer = UserPublicSerializer(user)
         return Response(serializer.data)
     except User.DoesNotExist:
@@ -97,12 +100,41 @@ def get_user(request, user_id):
 def update_user(request, user_id):
     """Update user profile"""
     try:
-        user = User.objects.get(_id=user_id)
+        user = User.objects.get(_id=ObjectId(user_id))
         serializer = UserPublicSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'User not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['POST'])
+def upload_avatar(request, user_id):
+    """Upload and change user profile avatar"""
+    try:
+        user = User.objects.get(_id=ObjectId(user_id))
+        if 'avatar' not in request.FILES:
+            return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        avatar_file = request.FILES['avatar']
+        
+        # Save file to default storage (media/avatars)
+        file_path = default_storage.save(os.path.join('avatars', f"{user_id}_{avatar_file.name}"), avatar_file)
+        file_relative_url = default_storage.url(file_path)
+        
+        # Build absolute URL using the request
+        full_avatar_url = request.build_absolute_uri(file_relative_url)
+        
+        user.avatar_url = full_avatar_url
+        user.save()
+        
+        serializer = UserPublicSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     except User.DoesNotExist:
         return Response(
             {'error': 'User not found'},
