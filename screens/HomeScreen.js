@@ -307,6 +307,20 @@ import { beachesAPI, getUserData } from '../services/api';
 
                             <TouchableOpacity
                                 style={styles.featureCard}
+                                onPress={() => navigation.navigate('Utilities')}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.featureIcon}>
+                                    <Ionicons name="map" size={32} color="#673AB7" />
+                                </View>
+                                <Text style={styles.featureTitle}>Smart Itinerary</Text>
+                                <Text style={styles.featureText}>
+                                    Plan your perfect beach day with AI-optimized routes and facilities
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.featureCard}
                                 onPress={() => navigation.navigate('LiveWeather')}
                                 activeOpacity={0.8}
                             >
@@ -343,10 +357,10 @@ import { beachesAPI, getUserData } from '../services/api';
 
                             <TouchableOpacity
                                 style={styles.quickActionButton}
-                                onPress={() => navigation.navigate('Profile')}
+                                onPress={() => navigation.navigate('Utilities')}
                             >
-                                <Ionicons name="person" size={24} color="#FF9800" />
-                                <Text style={styles.quickActionText}>My Profile</Text>
+                                <Ionicons name="map" size={24} color="#FF9800" />
+                                <Text style={styles.quickActionText}>Smart Itinerary</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
