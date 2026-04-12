@@ -12,14 +12,23 @@ import { Platform } from 'react-native';
 // For iOS simulator, use localhost
 const getApiBaseUrl = () => {
   if (__DEV__) {
+    // Hardcoded API URL to avoid VirtualBox network detection issues on your current machine
+    return 'http://192.168.0.103:8000/api';
+
     // 1) Allow explicit override via app config (app.json/app.config.js) -> expo.extra.API_URL
     const configured = Constants.expoConfig?.extra?.API_URL || Constants.manifest?.extra?.API_URL;
     if (configured) return configured.endsWith('/api') ? configured : `${configured.replace(/\/$/, '')}/api`;
 
-    // 2) If running in Expo dev client / classic, debuggerHost contains the packager host: e.g. 192.168.1.5:19000
-    const debuggerHost = Constants.manifest?.debuggerHost || Constants.expoConfig?.hostUri;
-    if (debuggerHost) {
-      const host = String(debuggerHost).split(':')[0];
+    // 2) If running in Expo dev client / classic, debuggerHost contains the packager host.
+    // Note: We prioritize the real Wi-Fi network (usually 192.168.0.x or 192.168.1.x)
+    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || Constants.expoConfig?.extra?.hostUri;
+    if (hostUri) {
+      let host = String(hostUri).split(':')[0];
+      // Skip "phantom" virtual interfaces (like VirtualBox 192.168.56.x) 
+      // if we have a real network available.
+      if (host && host.startsWith('192.168.56')) {
+         host = '192.168.0.103'; // Use the confirmed real Wi-Fi IP
+      }
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
         return `http://${host}:8000/api`;
       }
@@ -221,6 +230,29 @@ export const authAPI = {
   updateUser: async (userId, data) => {
     try {
       const response = await api.put(`/auth/user/${userId}/update/`, data);
+      if (response.data) {
+        await setUserData(response.data);
+      }
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  uploadAvatar: async (userId, imageUri) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'avatar.jpg',
+      });
+
+      const response = await api.post(`/auth/user/${userId}/avatar/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       if (response.data) {
         await setUserData(response.data);
       }
