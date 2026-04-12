@@ -1,8 +1,37 @@
+from bson import ObjectId
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Post, Comment
 from .serializers import PostSerializer, PostDetailSerializer, CommentSerializer
+
+
+def _get_post(post_id):
+    """Helper to robustly fetch a Post by its ID string."""
+    # Try ObjectId conversion first (MongoDB stores _id as ObjectId)
+    try:
+        return Post.objects.get(_id=ObjectId(post_id))
+    except Exception:
+        pass
+    # Fallback: try raw string match
+    try:
+        return Post.objects.get(_id=post_id)
+    except Exception:
+        pass
+    return None
+
+
+def _get_comment(comment_id):
+    """Helper to robustly fetch a Comment by its ID string."""
+    try:
+        return Comment.objects.get(_id=ObjectId(comment_id))
+    except Exception:
+        pass
+    try:
+        return Comment.objects.get(_id=comment_id)
+    except Exception:
+        pass
+    return None
 
 
 @api_view(['GET', 'POST'])
@@ -56,17 +85,9 @@ def posts_list(request):
 @api_view(['GET'])
 def post_detail(request, post_id):
     """Get a single post with all its comments (threaded)."""
-    try:
-        post = Post.objects.get(pk=post_id)
-    except Post.DoesNotExist:
+    post = _get_post(post_id)
+    if not post:
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception:
-        # Djongo sometimes needs ObjectId
-        from bson import ObjectId
-        try:
-            post = Post.objects.get(_id=ObjectId(post_id))
-        except Exception:
-            return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = PostDetailSerializer(post)
     return Response(serializer.data)
@@ -79,14 +100,9 @@ def like_post(request, post_id):
     if not user_id:
         return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        post = Post.objects.get(pk=post_id)
-    except Exception:
-        from bson import ObjectId
-        try:
-            post = Post.objects.get(_id=ObjectId(post_id))
-        except Exception:
-            return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    post = _get_post(post_id)
+    if not post:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     likes = post.likes or []
     if user_id in likes:
@@ -113,18 +129,12 @@ def add_comment(request, post_id):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-    # Verify post exists
-    try:
-        post = Post.objects.get(pk=post_id)
-    except Exception:
-        from bson import ObjectId
-        try:
-            post = Post.objects.get(_id=ObjectId(post_id))
-        except Exception:
-            return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    post = _get_post(post_id)
+    if not post:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     comment = Comment(
-        post_id=str(post.pk),
+        post_id=str(post._id),
         author_id=str(data['author_id']),
         author_name=data['author_name'],
         author_avatar=data.get('author_avatar', ''),
@@ -149,14 +159,9 @@ def like_comment(request, comment_id):
     if not user_id:
         return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        comment = Comment.objects.get(_id=comment_id)
-    except Exception:
-        from bson import ObjectId
-        try:
-            comment = Comment.objects.get(_id=ObjectId(comment_id))
-        except Exception:
-            return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+    comment = _get_comment(comment_id)
+    if not comment:
+        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
 
     likes = comment.likes or []
     if user_id in likes:
