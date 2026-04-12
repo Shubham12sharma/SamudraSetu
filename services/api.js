@@ -496,4 +496,79 @@ export const syncAPI = {
   },
 };
 
+export const ecoImpactAPI = {
+  // Calculate environmental impact for a single beach visit
+  calculateImpact: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/calculate-impact/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to calculate impact');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Eco Impact API Error:', error);
+      throw error;
+    }
+  },
+
+  // Compare different transport modes
+  compareTransportModes: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/compare-transport/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to compare transport modes');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Compare Transport API Error:', error);
+      throw error;
+    }
+  },
+
+  // Calculate impact for a multi-beach itinerary
+  calculateItineraryImpact: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/calculate-itinerary-impact/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to calculate itinerary impact');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Itinerary Impact API Error:', error);
+      throw error;
+    }
+  },
+};
+
 export default api;
+

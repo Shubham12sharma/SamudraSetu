@@ -5,6 +5,7 @@ import {
     ActivityIndicator,
     Animated,
     FlatList,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -210,8 +211,8 @@ export default function LiveWeatherScreen({ navigation }) {
         <TouchableOpacity
             style={[styles.beachCard, item.distance && styles.nearbyCard]}
                 onPress={() => {
-                    // If LiveWeather is outside the Beaches stack, navigate into Beaches and open BeachDetails
-                    navigateToBeaches({ screen: 'BeachDetails', params: { beach: item } });
+                    // Open the details panel
+                    fetchDetails(item);
                 }}
         >
             <View style={styles.beachInfo}>
@@ -297,45 +298,51 @@ export default function LiveWeatherScreen({ navigation }) {
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.detailsLocation}>
-                        📍 {selected.city}, {selected.state}
-                        {selected.distance && ` • ${selected.distance.toFixed(1)} km away`}
-                    </Text>
-
-                    {/* Weather */}
-                    <View style={styles.weatherCard}>
-                        <Text style={styles.sectionLabel}>Current Weather</Text>
-                        <Text style={styles.weatherTemp}>
-                            {weather ? `${weather.temperature ?? '--'}°C` : '--'}
-                        </Text>
-                        <Text style={styles.weatherDesc}>
-                            {weather?.condition || 'Loading...'}
-                        </Text>
-                    </View>
-
-                    {/* Vibe */}
-                    <View style={styles.infoCard}>
-                        <Text style={styles.sectionLabel}>Beach Vibe</Text>
-                        <Text style={styles.infoValue}>
-                            {vibe?.vibe || vibe?.summary || '—'}
-                        </Text>
-                    </View>
-
-                    {/* Condition */}
-                    <View style={styles.infoCard}>
-                        <Text style={styles.sectionLabel}>Water Condition</Text>
-                        <Text style={styles.infoValue}>
-                            {condition?.status || condition?.condition || '—'}
-                        </Text>
-                    </View>
-
-                    {/* Actions */}
-                    <TouchableOpacity
-                        style={styles.fullDetailsBtn}
-                        onPress={() => navigateToBeaches({ screen: 'BeachDetails', params: { beach: selected } })}
+                    <ScrollView
+                        style={styles.detailsScrollView}
+                        showsVerticalScrollIndicator={false}
+                        scrollEventThrottle={16}
                     >
-                        <Text style={styles.fullDetailsText}>View Full Details →</Text>
-                    </TouchableOpacity>
+                        <Text style={styles.detailsLocation}>
+                            📍 {selected.city}, {selected.state}
+                            {selected.distance && ` • ${selected.distance.toFixed(1)} km away`}
+                        </Text>
+
+                        {/* Weather */}
+                        <View style={styles.weatherCard}>
+                            <Text style={styles.sectionLabel}>Current Weather</Text>
+                            <Text style={styles.weatherTemp}>
+                                {weather ? `${weather.temperature ?? '--'}°C` : '--'}
+                            </Text>
+                            <Text style={styles.weatherDesc}>
+                                {weather?.condition || 'Loading...'}
+                            </Text>
+                        </View>
+
+                        {/* Vibe */}
+                        <View style={styles.infoCard}>
+                            <Text style={styles.sectionLabel}>Beach Vibe</Text>
+                            <Text style={styles.infoValue}>
+                                {vibe?.vibe || vibe?.summary || '—'}
+                            </Text>
+                        </View>
+
+                        {/* Condition */}
+                        <View style={styles.infoCard}>
+                            <Text style={styles.sectionLabel}>Water Condition</Text>
+                            <Text style={styles.infoValue}>
+                                {condition?.status || condition?.condition || '—'}
+                            </Text>
+                        </View>
+
+                        {/* Actions */}
+                        <TouchableOpacity
+                            style={styles.fullDetailsBtn}
+                            onPress={() => navigateToBeaches({ screen: 'BeachDetails', params: { beach: selected } })}
+                        >
+                            <Text style={styles.fullDetailsText}>View Full Details →</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
                 </Animated.View>
             )}
         </SafeAreaView>
@@ -452,6 +459,11 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 20,
     },
+    detailsScrollView: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+    },
     detailsHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -481,12 +493,10 @@ const styles = StyleSheet.create({
     detailsLocation: {
         fontSize: 14,
         color: '#424242',
-        paddingHorizontal: 20,
         marginBottom: 16,
     },
     weatherCard: {
         backgroundColor: '#E3F2FD',
-        marginHorizontal: 20,
         marginBottom: 16,
         padding: 16,
         borderRadius: 12,
@@ -509,7 +519,6 @@ const styles = StyleSheet.create({
     },
     infoCard: {
         backgroundColor: '#F5F5F5',
-        marginHorizontal: 20,
         marginBottom: 12,
         padding: 16,
         borderRadius: 12,
@@ -521,7 +530,6 @@ const styles = StyleSheet.create({
     },
     fullDetailsBtn: {
         backgroundColor: '#0288D1',
-        marginHorizontal: 20,
         marginVertical: 16,
         paddingVertical: 14,
         borderRadius: 12,

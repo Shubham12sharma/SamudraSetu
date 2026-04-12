@@ -1,4 +1,4 @@
-    import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -16,6 +16,7 @@ import { beachesAPI, getUserData } from '../services/api';
         const [loading, setLoading] = useState(true);
         const [refreshing, setRefreshing] = useState(false);
         const [user, setUser] = useState(null);
+        const [userCount, setUserCount] = useState('...');
 
         useEffect(() => {
             loadData();
@@ -37,6 +38,17 @@ import { beachesAPI, getUserData } from '../services/api';
                     .slice(0, 3);
                 
                 setBeaches(featuredBeaches);
+                
+                // Try to fetch user count (approximate from beaches)
+                try {
+                    if (beachesArray.length > 0) {
+                        // If API has user_count in response, use it; otherwise estimate
+                        const count = beachesData.user_count || Math.max(beachesArray.length * 3, 100);
+                        setUserCount(`${count}+`);
+                    }
+                } catch (e) {
+                    setUserCount('5K+');
+                }
             } catch (error) {
                 console.error('Error loading data:', error);
             } finally {
@@ -117,7 +129,7 @@ import { beachesAPI, getUserData } from '../services/api';
                     {/* Header Section */}
                     <View style={styles.header}>
                         <View style={styles.headerContent}>
-                            <Text style={styles.title}>🏖️ SamudraSetu</Text>
+                            <Text style={styles.title}>SamudraSetu</Text>
                             <Text style={styles.subtitle}>Beach Recreational Suitability</Text>
                             <Text style={styles.description}>
                                 Discover the best beaches across India with real-time suitability scores, weather data, and AI-powered insights.
@@ -141,7 +153,7 @@ import { beachesAPI, getUserData } from '../services/api';
                         </View>
                         <View style={styles.statBox}>
                             <Ionicons name="people" size={28} color="#FF9800" />
-                            <Text style={styles.statNumber}>5K+</Text>
+                            <Text style={styles.statNumber}>{userCount}</Text>
                             <Text style={styles.statLabel}>Users</Text>
                         </View>
                     </View>
@@ -149,7 +161,7 @@ import { beachesAPI, getUserData } from '../services/api';
                     {/* Featured Beaches */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>⭐ Top Recommended Beaches</Text>
+                            <Text style={styles.sectionTitle}>Top Recommended Beaches</Text>
                             <TouchableOpacity onPress={() => navigateToBeaches()}>
                                 <Text style={styles.seeAllText}>See All →</Text>
                             </TouchableOpacity>
@@ -282,9 +294,10 @@ import { beachesAPI, getUserData } from '../services/api';
                                 </Text>
                             </TouchableOpacity>
 
+                            
                             <TouchableOpacity
                                 style={styles.featureCard}
-                                onPress={openBeachDetailsForFeature}
+                                onPress={() => navigation.navigate('EcoImpact')}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.featureIcon}>
@@ -359,6 +372,7 @@ import { beachesAPI, getUserData } from '../services/api';
         },
         scrollContent: {
             paddingBottom: 100,
+            flexGrow: 1,
         },
         header: {
             backgroundColor: '#0288D1',

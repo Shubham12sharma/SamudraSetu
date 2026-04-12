@@ -9,6 +9,7 @@ import AssistantScreen from '../screens/AssistantScreen';
 import BeachDetailsScreen from '../screens/BeachDetailScreen';
 import BeachListScreen from '../screens/BeachListScreen';
 import CVVerificationScreen from '../screens/CVVerificationScreen';
+import EcoImpactScreen from '../screens/EcoImpactScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LiveWeatherScreen from '../screens/LiveWeatherScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -208,7 +209,6 @@ export default function AppNavigator() {
         <Stack.Navigator
             screenOptions={{
                 headerShown: false,
-                // ✅ CRITICAL: These prevent navigation from blocking scrolling
                 animationEnabled: true,
                 gestureEnabled: true,
                 cardOverlayEnabled: false,
@@ -237,6 +237,7 @@ export default function AppNavigator() {
                         options={{
                             animationEnabled: true,
                             gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
                         }}
                     />
                     <Stack.Screen
@@ -245,6 +246,7 @@ export default function AppNavigator() {
                         options={{
                             animationEnabled: true,
                             gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
                         }}
                     />
                     <Stack.Screen
@@ -253,6 +255,7 @@ export default function AppNavigator() {
                         options={{
                             animationEnabled: true,
                             gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
                         }}
                     />
                     <Stack.Screen
@@ -261,6 +264,16 @@ export default function AppNavigator() {
                         options={{
                             animationEnabled: true,
                             gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
+                        }}
+                    />
+                    <Stack.Screen
+                        name="EcoImpact"
+                        component={EcoImpactScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
                         }}
                     />
                 </>
