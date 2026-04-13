@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Platform,
     RefreshControl,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -80,24 +82,8 @@ import { beachesAPI, getUserData } from '../services/api';
             navigation.navigate('Beaches', { screen: 'BeachDetails', params: { beach } });
         };
 
-        // Not used anymore, but kept for reference
-        // const openBeachDetailsForFeature = () => {
-        //     const first = getFirstBeach();
-        //     if (first) {
-        //         goToBeachDetails(first);
-        //     } else {
-        //         goToBeachList();
-        //     }
-        // };
-
-        const openSmartItinerary = () => {
-            const first = getFirstBeach();
-            if (first) {
-                const id = first._id || first.id;
-                navigation.navigate('Utilities', { startBeachId: id });
-            } else {
-                navigation.navigate('Utilities');
-            }
+        const openCommunity = () => {
+            navigation.navigate('Community');
         };
 
         return (
@@ -198,7 +184,7 @@ import { beachesAPI, getUserData } from '../services/api';
                                                     </Text>
                                                 </View>
                                             )}
-                                            {beach.cleanliness_score !== undefined && (
+                                            {(beach.cleanliness_score !== undefined && beach.cleanliness_score !== null) && (
                                                 <View style={styles.metaItem}>
                                                     <Ionicons name="star" size={14} color="#FFD700" />
                                                     <Text style={styles.metaText}>
@@ -252,15 +238,15 @@ import { beachesAPI, getUserData } from '../services/api';
 
                             <TouchableOpacity
                                 style={styles.featureCard}
-                                onPress={openSmartItinerary}
+                                onPress={openCommunity}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.featureIcon}>
-                                    <Ionicons name="map" size={32} color="#FF9800" />
+                                    <Ionicons name="chatbubbles" size={32} color="#FF9800" />
                                 </View>
-                                <Text style={styles.featureTitle}>Smart Itinerary</Text>
+                                <Text style={styles.featureTitle}>Community</Text>
                                 <Text style={styles.featureText}>
-                                    Graph-based route optimization for the perfect beach trip
+                                    Connect with fellow beach lovers, share events & tips
                                 </Text>
                             </TouchableOpacity>
 
@@ -295,6 +281,20 @@ import { beachesAPI, getUserData } from '../services/api';
 
                             <TouchableOpacity
                                 style={styles.featureCard}
+                                onPress={() => navigation.navigate('Utilities')}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.featureIcon}>
+                                    <Ionicons name="map" size={32} color="#673AB7" />
+                                </View>
+                                <Text style={styles.featureTitle}>Smart Itinerary</Text>
+                                <Text style={styles.featureText}>
+                                    Plan your perfect beach day with AI-optimized routes and facilities
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.featureCard}
                                 onPress={() => navigation.navigate('LiveWeather')}
                                 activeOpacity={0.8}
                             >
@@ -323,18 +323,18 @@ import { beachesAPI, getUserData } from '../services/api';
 
                             <TouchableOpacity
                                 style={styles.quickActionButton}
-                                onPress={() => navigation.navigate('Utilities')}
+                                onPress={openCommunity}
                             >
-                                <Ionicons name="map" size={24} color="#4CAF50" />
-                                <Text style={styles.quickActionText}>Plan Itinerary</Text>
+                                <Ionicons name="chatbubbles" size={24} color="#4CAF50" />
+                                <Text style={styles.quickActionText}>Community</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={styles.quickActionButton}
-                                onPress={() => navigation.navigate('Profile')}
+                                onPress={() => navigation.navigate('Utilities')}
                             >
-                                <Ionicons name="person" size={24} color="#FF9800" />
-                                <Text style={styles.quickActionText}>My Profile</Text>
+                                <Ionicons name="map" size={24} color="#FF9800" />
+                                <Text style={styles.quickActionText}>Smart Itinerary</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -360,7 +360,7 @@ import { beachesAPI, getUserData } from '../services/api';
         },
         header: {
             backgroundColor: '#0288D1',
-            paddingTop: 20,
+            paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0) + 20,
             paddingBottom: 30,
             paddingHorizontal: 20,
             borderBottomLeftRadius: 30,

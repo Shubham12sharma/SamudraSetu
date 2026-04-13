@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 
 import AssistantScreen from '../screens/AssistantScreen';
 import BeachDetailsScreen from '../screens/BeachDetailScreen';
 import BeachListScreen from '../screens/BeachListScreen';
+import CommunityScreen from '../screens/CommunityScreen';
 import CVVerificationScreen from '../screens/CVVerificationScreen';
 import EcoImpactScreen from '../screens/EcoImpactScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -97,8 +98,8 @@ function MainTabs() {
                     marginTop: 4,
                 },
                 tabBarStyle: {
-                    height: 70,
-                    paddingBottom: 8,
+                    height: 75,
+                    paddingBottom: Platform.OS === 'android' ? 16 : 8,
                     paddingTop: 8,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
@@ -163,12 +164,12 @@ function MainTabs() {
             />
 
             <Tab.Screen
-                name="Utilities"
-                component={UtilitiesScreen}
+                name="Community"
+                component={CommunityScreen}
                 options={{
-                    tabBarLabel: 'Utilities',
+                    tabBarLabel: 'Community',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="build" size={size} color={color} />
+                        <Ionicons name="chatbubbles" size={size} color={color} />
                     ),
                 }}
             />
@@ -270,6 +271,15 @@ export default function AppNavigator() {
                     <Stack.Screen
                         name="EcoImpact"
                         component={EcoImpactScreen}
+                        options={{
+                            animationEnabled: true,
+                            gestureEnabled: true,
+                            cardStyle: { backgroundColor: 'transparent' },
+                        }}
+                    />
+                    <Stack.Screen
+                        name="Utilities"
+                        component={UtilitiesScreen}
                         options={{
                             animationEnabled: true,
                             gestureEnabled: true,

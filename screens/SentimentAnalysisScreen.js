@@ -241,7 +241,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                         <Text style={styles.sentimentLabel}>Sentiment Score</Text>
                         <View style={styles.sentimentScoreCircle}>
                             <Text style={[styles.sentimentScoreValue, { color: getSentimentColor(analysisResult.sentiment_score) }]}>
-                                {analysisResult.sentiment_score}%
+                                {(analysisResult.sentiment_score ?? 0).toFixed(0)}%
                             </Text>
                             <Text style={styles.sentimentScoreEmoji}>
                                 {getSentimentEmoji(analysisResult.sentiment_score)}
@@ -320,7 +320,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                         <View style={styles.sentimentOverview}>
                             <View style={styles.sentimentCircle}>
                                 <Text style={[styles.sentimentOverviewScore, { color: getSentimentColor(beachVibe.current_sentiment_score || 0) }]}>
-                                    {beachVibe.current_sentiment_score || 0}%
+                                    {(beachVibe.current_sentiment_score ?? 0).toFixed(0)}%
                                 </Text>
                                 <Text style={styles.sentimentOverviewEmoji}>
                                     {getSentimentEmoji(beachVibe.current_sentiment_score || 0)}
@@ -365,7 +365,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                                         <View style={[styles.distributionFill, { width: `${beachVibe.detailed_analysis.sentiment_distribution?.positive || 0}%`, backgroundColor: '#4CAF50' }]} />
                                     </View>
                                     <Text style={styles.distributionPercent}>
-                                        {beachVibe.detailed_analysis.sentiment_distribution?.positive || 0}%
+                                        {(beachVibe.detailed_analysis.sentiment_distribution?.positive ?? 0).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.distributionItem}>
@@ -374,7 +374,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                                         <View style={[styles.distributionFill, { width: `${beachVibe.detailed_analysis.sentiment_distribution?.neutral || 0}%`, backgroundColor: '#FF9800' }]} />
                                     </View>
                                     <Text style={styles.distributionPercent}>
-                                        {beachVibe.detailed_analysis.sentiment_distribution?.neutral || 0}%
+                                        {(beachVibe.detailed_analysis.sentiment_distribution?.neutral ?? 0).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.distributionItem}>
@@ -383,7 +383,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                                         <View style={[styles.distributionFill, { width: `${beachVibe.detailed_analysis.sentiment_distribution?.negative || 0}%`, backgroundColor: '#F44336' }]} />
                                     </View>
                                     <Text style={styles.distributionPercent}>
-                                        {beachVibe.detailed_analysis.sentiment_distribution?.negative || 0}%
+                                        {(beachVibe.detailed_analysis.sentiment_distribution?.negative ?? 0).toFixed(0)}%
                                     </Text>
                                 </View>
                             </View>
@@ -398,7 +398,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
                                             <View style={styles.topTagBar}>
                                                 <View style={[styles.topTagFill, { width: `${tag.percentage}%` }]} />
                                             </View>
-                                            <Text style={styles.topTagPercent}>{tag.percentage}%</Text>
+                                            <Text style={styles.topTagPercent}>{(tag.percentage ?? 0).toFixed(0)}%</Text>
                                         </View>
                                     ))}
                                 </View>

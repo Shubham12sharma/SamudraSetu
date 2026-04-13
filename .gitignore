@@ -45,6 +45,7 @@ app-example
 
 # Python / Django
 backend/venv/
+backend/venv_312/
 backend/__pycache__/
 backend/*/__pycache__/
 backend/*.pyc

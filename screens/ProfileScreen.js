@@ -3,8 +3,10 @@ import {
     Alert,
     Image,
     Modal,
+    Platform,
     SafeAreaView,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
@@ -376,7 +378,7 @@ const styles = StyleSheet.create({
 
     profileHeader: {
         backgroundColor: '#0288D1',
-        paddingTop: 40,
+        paddingTop: (Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0) + 40,
         paddingBottom: 30,
         borderBottomLeftRadius: 25,
         borderBottomRightRadius: 25,

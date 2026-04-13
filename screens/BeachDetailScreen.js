@@ -262,7 +262,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                 setSuitability(result.suitability_scores);
                 Alert.alert(
                     'Suitability Updated',
-                    `Overall suitability is now ${result.suitability_scores.overall.toFixed(0)}%.`
+                    `Overall suitability is now ${(result.suitability_scores?.overall || 0).toFixed(0)}%.`
                 );
             }
         } catch (error) {
@@ -344,7 +344,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                     { color: getSuitabilityColor(suitability.overall) },
                                 ]}
                             >
-                                {typeof suitability.overall === 'number' ? suitability.overall.toFixed(0) : '--'}%
+                                {(suitability.overall || 0).toFixed(0)}%
                             </Text>
 
                             <View style={styles.suitabilityBreakdown}>
@@ -356,7 +356,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.swimming) },
                                         ]}
                                     >
-                                        {typeof suitability.swimming === 'number' ? suitability.swimming.toFixed(0) : '--'}%
+                                        {(suitability.swimming || 0).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
@@ -367,7 +367,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.family) },
                                         ]}
                                     >
-                                        {typeof suitability.family === 'number' ? suitability.family.toFixed(0) : '--'}%
+                                        {(suitability.family || 0).toFixed(0)}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
@@ -378,7 +378,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.adventure) },
                                         ]}
                                     >
-                                        {typeof suitability.adventure === 'number' ? suitability.adventure.toFixed(0) : '--'}%
+                                        {(suitability.adventure || 0).toFixed(0)}%
                                     </Text>
                                 </View>
                             </View>
@@ -455,7 +455,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                     },
                                 ]}
                             >
-                                {beach.cleanliness_score ? beach.cleanliness_score.toFixed(0) + '%' : 'N/A'}
+                                {beach.cleanliness_score ? (beach.cleanliness_score || 0).toFixed(0) + '%' : 'N/A'}
                             </Text>
                         </View>
 
@@ -484,7 +484,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                         },
                                     ]}
                                 >
-                                    {(vibe.current_sentiment_score * 100).toFixed(0)}%
+                                    {((vibe.current_sentiment_score || 0) * 100).toFixed(0)}%
                                 </Text>
                             </View>
                         )}
