@@ -14,7 +14,8 @@ import {
 import { beachesAPI, getUserData } from '../services/api';
 
     export default function HomeScreen({ navigation }) {
-        const [beaches, setBeaches] = useState([]);
+        const [beaches, setBeaches] = useState([]); // Top 3 featured
+        const [allBeaches, setAllBeaches] = useState([]); // All beaches for stats
         const [loading, setLoading] = useState(true);
         const [refreshing, setRefreshing] = useState(false);
         const [user, setUser] = useState(null);
@@ -29,27 +30,23 @@ import { beachesAPI, getUserData } from '../services/api';
                 setLoading(true);
                 const userData = await getUserData();
                 setUser(userData);
-                
-                // Load featured beaches (top suitability scores)
+
+                // Load all beaches for stats
                 const beachesData = await beachesAPI.getAll();
                 const beachesArray = Array.isArray(beachesData) ? beachesData : beachesData.results || [];
-                
-                // Sort by suitability score and take top 3
-                const featuredBeaches = beachesArray
+                setAllBeaches(beachesArray);
+
+                // Sort by suitability score and take top 3 for featured
+                const featuredBeaches = [...beachesArray]
                     .sort((a, b) => (b.suitability_score || 0) - (a.suitability_score || 0))
                     .slice(0, 3);
-                
                 setBeaches(featuredBeaches);
-                
-                // Try to fetch user count (approximate from beaches)
-                try {
-                    if (beachesArray.length > 0) {
-                        // If API has user_count in response, use it; otherwise estimate
-                        const count = beachesData.user_count || Math.max(beachesArray.length * 3, 100);
-                        setUserCount(`${count}+`);
-                    }
-                } catch (e) {
-                    setUserCount('5K+');
+
+                // User count from backend if available
+                if (beachesData.user_count) {
+                    setUserCount(`${beachesData.user_count}+`);
+                } else {
+                    setUserCount(beachesArray.length > 0 ? `${Math.max(beachesArray.length * 3, 100)}+` : '5K+');
                 }
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -75,38 +72,14 @@ import { beachesAPI, getUserData } from '../services/api';
             return beaches[0];
         };
 
-        // Safe navigation helper: prefer navigating via parent (root) navigator to reach the
-        // top-level 'Beaches' stack. Falls back to direct navigation when parent isn't available.
-        const navigateToBeaches = (opts) => {
-            try {
-                const parent = navigation.getParent?.();
-                if (parent && typeof parent.navigate === 'function') {
-                    // opts may be undefined (just open Beaches) or an object like { screen, params }
-                    parent.navigate('Beaches', opts || {});
-                    return;
-                }
-            } catch (e) {
-                // ignore and fallback
-            }
-
-            // Fallback: if targeting a nested screen, try direct navigation to that screen name;
-            // otherwise navigate to 'Beaches' (may still work if this navigator has the route).
-            if (opts?.screen) {
-                navigation.navigate(opts.screen, opts.params);
-            } else {
-                navigateToBeaches();
-            }
+        // Correct nested navigation for Beaches tab stack
+        const goToBeachList = () => {
+            navigation.navigate('Beaches');
         };
 
-        const openBeachDetailsForFeature = () => {
-            const first = getFirstBeach();
-            if (first) {
-                // BeachDetails lives inside the Beaches stack.
-                // Navigate to the Beaches tab and target the nested BeachDetails screen.
-                navigateToBeaches({ screen: 'BeachDetails', params: { beach: first } });
-            } else {
-                navigateToBeaches();
-            }
+        // Navigate to BeachDetails inside Beaches stack
+        const goToBeachDetails = (beach) => {
+            navigation.navigate('Beaches', { screen: 'BeachDetails', params: { beach } });
         };
 
         const openCommunity = () => {
@@ -138,7 +111,7 @@ import { beachesAPI, getUserData } from '../services/api';
                         <View style={styles.statBox}>
                             <Ionicons name="water" size={28} color="#0288D1" />
                             <Text style={styles.statNumber}>
-                                {beaches.length > 0 ? String(beaches.length) : '...'}
+                                {allBeaches.length > 0 ? String(allBeaches.length) : '...'}
                             </Text>
                             <Text style={styles.statLabel}>Beaches</Text>
                         </View>
@@ -158,7 +131,7 @@ import { beachesAPI, getUserData } from '../services/api';
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>Top Recommended Beaches</Text>
-                            <TouchableOpacity onPress={() => navigateToBeaches()}>
+                            <TouchableOpacity onPress={goToBeachList}>
                                 <Text style={styles.seeAllText}>See All →</Text>
                             </TouchableOpacity>
                         </View>
@@ -172,7 +145,7 @@ import { beachesAPI, getUserData } from '../services/api';
                                 <TouchableOpacity
                                     key={beach._id || beach.id}
                                     style={styles.featuredCard}
-                                    onPress={() => navigateToBeaches({ screen: 'BeachDetails', params: { beach } })}
+                                    onPress={() => goToBeachDetails(beach)}
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.featuredCardHeader}>
@@ -181,12 +154,13 @@ import { beachesAPI, getUserData } from '../services/api';
                                         </View>
                                         <View style={styles.featuredCardContent}>
                                             <Text style={styles.featuredName}>{beach.name}</Text>
-                                            <Text style={styles.featuredLocation}>
-                                                <Ionicons name="location" size={12} color="#666" /> {beach.state}
-                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Ionicons name="location" size={12} color="#666" />
+                                                <Text style={styles.featuredLocation}> {beach.state}</Text>
+                                            </View>
                                         </View>
-                                        <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}>
-                                            <Text style={[styles.suitabilityBadgeText, { color: getSuitabilityColor(beach.suitability_score || 0) }]}>
+                                        <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}>\
+                                            <Text style={[styles.suitabilityBadgeText, { color: getSuitabilityColor(beach.suitability_score || 0) }]}>\
                                                 {(beach.suitability_score || 0).toFixed(0)}%
                                             </Text>
                                         </View>
@@ -214,7 +188,7 @@ import { beachesAPI, getUserData } from '../services/api';
                                                 <View style={styles.metaItem}>
                                                     <Ionicons name="star" size={14} color="#FFD700" />
                                                     <Text style={styles.metaText}>
-                                                        Clean: {beach.cleanliness_score.toFixed(0)}%
+                                                        Clean: {beach.cleanliness_score != null ? beach.cleanliness_score.toFixed(0) : "N/A"}%
                                                     </Text>
                                                 </View>
                                             )}
@@ -341,7 +315,7 @@ import { beachesAPI, getUserData } from '../services/api';
                         <View style={styles.quickActions}>
                             <TouchableOpacity
                                 style={styles.quickActionButton}
-                                onPress={() => navigateToBeaches()}
+                                onPress={goToBeachList}
                             >
                                 <Ionicons name="water" size={24} color="#0288D1" />
                                 <Text style={styles.quickActionText}>Explore Beaches</Text>

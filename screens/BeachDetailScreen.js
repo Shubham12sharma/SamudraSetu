@@ -70,6 +70,21 @@ export default function BeachDetailsScreen({ route, navigation }) {
         fetchEco();
     }, [userLocation, beachId]);
 
+    // Fetch live info (weather + Wikipedia)
+    useEffect(() => {
+        const fetchLiveInfo = async () => {
+            if (!beachId) return;
+            try {
+                const liveInfo = await beachesAPI.getLiveInfo(beachId);
+                if (liveInfo.weather) setWeather(liveInfo.weather);
+                if (liveInfo.wikipedia) setVibe(liveInfo.wikipedia); // reuse vibe for wiki summary
+            } catch (err) {
+                console.error('Live info error:', err);
+            }
+        };
+        fetchLiveInfo();
+    }, [beachId]);
+
     const parseTags = (raw) => {
         if (!raw) return [];
         if (Array.isArray(raw)) return raw;
@@ -322,6 +337,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                 )}
                             </View>
 
+
                             <Text
                                 style={[
                                     styles.suitabilityScore,
@@ -526,6 +542,24 @@ export default function BeachDetailsScreen({ route, navigation }) {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>📝 Description</Text>
                         <Text style={styles.descriptionText}>{beach.description}</Text>
+                    </View>
+                )}
+
+                {/* Wikipedia Summary */}
+                {vibe && vibe.extract && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>🌐 About This Beach</Text>
+                        <Text style={styles.descriptionText}>{vibe.extract}</Text>
+                        {vibe.content_urls && vibe.content_urls.desktop && (
+                            <Text style={{ color: '#0891B2', marginTop: 4 }}
+                                  onPress={() => {
+                                    if (vibe.content_urls.desktop.page) {
+                                        Linking.openURL(vibe.content_urls.desktop.page);
+                                    }
+                                  }}>
+                                Read more on Wikipedia
+                            </Text>
+                        )}
                     </View>
                 )}
 

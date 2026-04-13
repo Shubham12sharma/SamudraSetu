@@ -1,21 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
-    Modal,
-    KeyboardAvoidingView,
-    Platform,
-    Dimensions
+    View
 } from 'react-native';
-import { beachesAPI, mlPredictionAPI } from '../services/api';
-import { Picker } from '@react-native-picker/picker';
+import { beachesAPI, mlAPI } from '../services/api';
 
 export default function MLPredictionScreen({ navigation, route }) {
     const [beaches, setBeaches] = useState([]);
@@ -101,15 +100,31 @@ export default function MLPredictionScreen({ navigation, route }) {
             Alert.alert('No Beach Selected', 'Please select a beach first');
             return;
         }
+        if (!selectedBeach._id) {
+            Alert.alert('Invalid Beach', 'Selected beach does not have a valid ID.');
+            return;
+        }
 
         setPredicting(true);
         try {
-            const predictionData = {
-                beach_id: selectedBeach._id || selectedBeach.id,
-                features: parameters
+            const beachId = selectedBeach._id;
+            // Map tide_level to tide_height for backend
+            let tide_height = 1.5;
+            if (parameters.tide_level === 'low') tide_height = 0.5;
+            else if (parameters.tide_level === 'moderate') tide_height = 1.5;
+            else if (parameters.tide_level === 'high') tide_height = 2.5;
+
+            // Prepare features for backend (only required fields)
+            const features = {
+                temperature: parameters.temperature,
+                humidity: parameters.humidity,
+                wind_speed: parameters.wind_speed,
+                tide_height,
+                // Optionally, you can add precipitation, water_temp, air_quality_index if you want to allow user input for them
+                month: parameters.month,
             };
 
-            const result = await mlPredictionAPI.predictSuitability(predictionData);
+            const result = await mlAPI.predictSuitability(beachId, features);
             setPredictionResult(result.suitability_scores);
 
             Alert.alert(
@@ -130,10 +145,14 @@ export default function MLPredictionScreen({ navigation, route }) {
             Alert.alert('No Beach Selected', 'Please select a beach first');
             return;
         }
+        if (!selectedBeach._id) {
+            Alert.alert('Invalid Beach', 'Selected beach does not have a valid ID.');
+            return;
+        }
 
         setPredicting(true);
         try {
-            const result = await mlPredictionAPI.getSuitability(selectedBeach._id || selectedBeach.id);
+            const result = await mlAPI.getSuitability(selectedBeach._id);
             setPredictionResult(result.suitability_scores);
         } catch (error) {
             console.error('Error getting suitability:', error);

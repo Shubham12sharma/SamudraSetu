@@ -1,18 +1,18 @@
     import { Ionicons } from '@expo/vector-icons';
-    import React, { useEffect, useMemo, useState } from 'react';
-    import {
-        ActivityIndicator,
-        Alert,
-        FlatList,
-        RefreshControl,
-        StyleSheet,
-        Text,
-        TextInput,
-        TouchableOpacity,
-        View,
-    } from 'react-native';
-    import { SafeAreaView } from 'react-native-safe-area-context';
-    import { beachesAPI } from '../services/api';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { beachesAPI } from '../services/api';
 
     export default function BeachListScreen({ navigation }) {
         const [searchQuery, setSearchQuery] = useState('');
@@ -51,12 +51,15 @@
         const filteredBeaches = useMemo(() => {
             if (!searchQuery.trim()) return beaches;
 
-            const query = searchQuery.toLowerCase();
-            return beaches.filter(beach =>
-                beach.name?.toLowerCase().includes(query) ||
-                beach.state?.toLowerCase().includes(query) ||
-                beach.description?.toLowerCase().includes(query)
-            );
+            // Support multi-word search: all words must match somewhere in the object
+            const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+            return beaches.filter(beach => {
+                const values = Object.values(beach)
+                    .filter(v => typeof v === 'string')
+                    .map(v => v.toLowerCase());
+                // Every word must be found in at least one value
+                return words.every(word => values.some(val => val.includes(word)));
+            });
         }, [beaches, searchQuery]);
 
         const getSuitabilityColor = (score) => {

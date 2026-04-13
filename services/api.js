@@ -4,43 +4,16 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 
 // API Base URL - Use your machine's IP for physical device testing
 // For Android emulator, use 10.0.2.2 instead of localhost
 // For iOS simulator, use localhost
 const getApiBaseUrl = () => {
   if (__DEV__) {
-    // Hardcoded API URL to avoid VirtualBox network detection issues on your current machine
-    return 'http://192.168.0.103:8000/api';
-
-    // 1) Allow explicit override via app config (app.json/app.config.js) -> expo.extra.API_URL
-    const configured = Constants.expoConfig?.extra?.API_URL || Constants.manifest?.extra?.API_URL;
-    if (configured) return configured.endsWith('/api') ? configured : `${configured.replace(/\/$/, '')}/api`;
-
-    // 2) If running in Expo dev client / classic, debuggerHost contains the packager host.
-    // Note: We prioritize the real Wi-Fi network (usually 192.168.0.x or 192.168.1.x)
-    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost || Constants.expoConfig?.extra?.hostUri;
-    if (hostUri) {
-      let host = String(hostUri).split(':')[0];
-      // Skip "phantom" virtual interfaces (like VirtualBox 192.168.56.x) 
-      // if we have a real network available.
-      if (host && host.startsWith('192.168.56')) {
-         host = '192.168.0.103'; // Use the confirmed real Wi-Fi IP
-      }
-      if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        return `http://${host}:8000/api`;
-      }
-    }
-
-    // 3) Android emulator special host
-    if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:8000/api';
-    }
-
-    // 4) Fallback to localhost for iOS simulator / web
-    return 'http://localhost:8000/api';
+    // Dynamically get the hostname from the current browser/request
+    // This automatically works with the machine's IP regardless of OS
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    return `http://${hostname}:8000/api`;
   }
 
   // Production (override via app config recommended)
@@ -314,6 +287,16 @@ export const beachesAPI = {
       throw error;
     }
   },
+
+  // Get live info (weather + Wikipedia)
+  getLiveInfo: async (beachId) => {
+    try {
+      const response = await api.get(`/beaches/${beachId}/live_info/`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 // ML Suitability API
@@ -532,7 +515,7 @@ export const ecoImpactAPI = {
   // Calculate environmental impact for a single beach visit
   calculateImpact: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/calculate-impact/`, {
+      const response = await fetch(`${API_BASE_URL}/calculate-impact/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -556,7 +539,7 @@ export const ecoImpactAPI = {
   // Compare different transport modes
   compareTransportModes: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/compare-transport/`, {
+      const response = await fetch(`${API_BASE_URL}/compare-transport/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -580,7 +563,7 @@ export const ecoImpactAPI = {
   // Calculate impact for a multi-beach itinerary
   calculateItineraryImpact: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/calculate-itinerary-impact/`, {
+      const response = await fetch(`${API_BASE_URL}/calculate-itinerary-impact/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
