@@ -1,18 +1,18 @@
     import { Ionicons } from '@expo/vector-icons';
-    import React, { useEffect, useMemo, useState } from 'react';
-    import {
-        ActivityIndicator,
-        Alert,
-        FlatList,
-        RefreshControl,
-        StyleSheet,
-        Text,
-        TextInput,
-        TouchableOpacity,
-        View,
-    } from 'react-native';
-    import { SafeAreaView } from 'react-native-safe-area-context';
-    import { beachesAPI } from '../services/api';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { beachesAPI } from '../services/api';
 
     export default function BeachListScreen({ navigation }) {
         const [searchQuery, setSearchQuery] = useState('');
@@ -52,11 +52,12 @@
             if (!searchQuery.trim()) return beaches;
 
             const query = searchQuery.toLowerCase();
-            return beaches.filter(beach =>
-                beach.name?.toLowerCase().includes(query) ||
-                beach.state?.toLowerCase().includes(query) ||
-                beach.description?.toLowerCase().includes(query)
-            );
+            return beaches.filter(beach => {
+                // Check all string fields in the beach object
+                return Object.values(beach).some(value =>
+                    typeof value === 'string' && value.toLowerCase().includes(query)
+                );
+            });
         }, [beaches, searchQuery]);
 
         const getSuitabilityColor = (score) => {

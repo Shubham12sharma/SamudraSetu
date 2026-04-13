@@ -1,0 +1,2179 @@
+{
+    "beaches": [
+        {
+            "name": "Puri Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.7995,
+            "longitude": 85.8345,
+            "blue_flag": true,
+            "description": "Famous beach in Puri"
+        },
+        {
+            "name": "Pati Sonepur Sea Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.3234,
+            "longitude": 85.1456,
+            "blue_flag": true
+        },
+        {
+            "name": "Rushikonda Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 17.8820,
+            "longitude": 83.2986,
+            "blue_flag": true
+        },
+        {
+            "name": "Kovalam Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 12.9352,
+            "longitude": 80.1892,
+            "blue_flag": true
+        },
+        {
+            "name": "Eden Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 12.0295,
+            "longitude": 79.8545,
+            "blue_flag": true
+        },
+        {
+            "name": "Radhanagar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2371,
+            "longitude": 92.9847,
+            "blue_flag": true,
+            "alias": "Beach No 7, Havelock Island"
+        },
+        {
+            "name": "Minicoy Thundi Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 8.2917,
+            "longitude": 73.0408,
+            "blue_flag": true
+        },
+        {
+            "name": "Kadmat Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.9276,
+            "longitude": 72.7324,
+            "blue_flag": true
+        },
+        {
+            "name": "Kappad Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 11.2667,
+            "longitude": 75.8333,
+            "blue_flag": true
+        },
+        {
+            "name": "Chal Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 12.6833,
+            "longitude": 75.1667,
+            "blue_flag": true
+        },
+        {
+            "name": "Kasarkod Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.3667,
+            "longitude": 74.4333,
+            "blue_flag": true
+        },
+        {
+            "name": "Padubidri Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.3353,
+            "longitude": 74.7167,
+            "blue_flag": true
+        },
+        {
+            "name": "Ghoghla Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 71.0833,
+            "blue_flag": true
+        },
+        {
+            "name": "Shivrajpur Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.1667,
+            "longitude": 68.9333,
+            "blue_flag": true
+        },
+        {
+            "name": "Shrivardhan Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.3167,
+            "longitude": 73.2667,
+            "blue_flag": true
+        },
+        {
+            "name": "Nagaon Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.45,
+            "longitude": 73.0167,
+            "blue_flag": true
+        },
+        {
+            "name": "Parnaka Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.8833,
+            "longitude": 72.7667,
+            "blue_flag": true
+        },
+        {
+            "name": "Guhagar Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.3667,
+            "longitude": 73.35,
+            "blue_flag": true
+        },
+        {
+            "name": "Ladghar Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.4167,
+            "longitude": 73.3667,
+            "blue_flag": true
+        },
+        {
+            "name": "Juhu Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1136,
+            "longitude": 72.8261,
+            "description": "Popular beach in Mumbai"
+        },
+        {
+            "name": "Alibaug Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.6426,
+            "longitude": 72.8697
+        },
+        {
+            "name": "Colva Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3475,
+            "longitude": 73.8040
+        },
+        {
+            "name": "Calangute Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5401,
+            "longitude": 73.7605
+        },
+        {
+            "name": "Palolem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Baga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5516,
+            "longitude": 73.7486
+        },
+        {
+            "name": "Anjuna Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5628,
+            "longitude": 73.8078
+        },
+        {
+            "name": "Panambur Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 12.9589,
+            "longitude": 74.8597
+        },
+        {
+            "name": "Malpe Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.3407,
+            "longitude": 74.7445
+        },
+        {
+            "name": "Kovalam Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.3963,
+            "longitude": 76.7183
+        },
+        {
+            "name": "Varkala Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.7319,
+            "longitude": 76.7290
+        },
+        {
+            "name": "Marina Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 13.0499,
+            "longitude": 80.2824,
+            "description": "Longest beach in India and world's second longest sandy urban beach"
+        },
+        {
+            "name": "Digha Sea Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.5708,
+            "longitude": 87.8081
+        },
+        {
+            "name": "Mandarmani Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.4872,
+            "longitude": 87.7138
+        },
+        {
+            "name": "Chandrabaga Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.7710,
+            "longitude": 85.9184
+        },
+        {
+            "name": "Konark Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.8747,
+            "longitude": 86.0909
+        },
+        {
+            "name": "Bheemili Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 17.9137,
+            "longitude": 83.4405
+        },
+        {
+            "name": "Yarada Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 17.7215,
+            "longitude": 83.3005
+        },
+        {
+            "name": "Suryalanka Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 15.8712,
+            "longitude": 80.7115
+        },
+        {
+            "name": "Vodarevu Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 15.4849,
+            "longitude": 80.1397
+        },
+        {
+            "name": "Kakinada Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 16.9531,
+            "longitude": 82.2665
+        },
+        {
+            "name": "Ramakrishna Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 17.7243,
+            "longitude": 83.3030
+        },
+        {
+            "name": "Manginapudi Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 16.1715,
+            "longitude": 80.9898
+        },
+        {
+            "name": "Mypadu Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 14.4234,
+            "longitude": 80.0669
+        },
+        {
+            "name": "Kalingapatnam Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 18.3413,
+            "longitude": 84.1226
+        },
+        {
+            "name": "Baruva Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 18.8579,
+            "longitude": 84.5213
+        },
+        {
+            "name": "Gopalpur Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.2656,
+            "longitude": 84.9203
+        },
+        {
+            "name": "Paradeep Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 20.3157,
+            "longitude": 86.6085
+        },
+        {
+            "name": "Talasaari Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 21.3475,
+            "longitude": 87.0256
+        },
+        {
+            "name": "Astaranga Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 20.0991,
+            "longitude": 85.7629
+        },
+        {
+            "name": "Balighai Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 19.9496,
+            "longitude": 85.8728
+        },
+        {
+            "name": "Chandipur Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 21.4539,
+            "longitude": 87.0237
+        },
+        {
+            "name": "Talsari Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 21.3475,
+            "longitude": 87.0256
+        },
+        {
+            "name": "Astaranga Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 20.0991,
+            "longitude": 85.7629
+        },
+        {
+            "name": "Balaramgadi Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 21.5458,
+            "longitude": 87.0456
+        },
+        {
+            "name": "Dhamra Beach",
+            "state": "Odisha",
+            "coast": "East",
+            "latitude": 20.8278,
+            "longitude": 86.8678
+        },
+        {
+            "name": "Bakkhali Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.5708,
+            "longitude": 87.8081
+        },
+        {
+            "name": "Sankarpur Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.4907,
+            "longitude": 87.7138
+        },
+        {
+            "name": "Tajpur Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.4986,
+            "longitude": 87.7088
+        },
+        {
+            "name": "Shankarpur Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.4907,
+            "longitude": 87.7138
+        },
+        {
+            "name": "Junput Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.5217,
+            "longitude": 87.7833
+        },
+        {
+            "name": "Henry's Island Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.5719,
+            "longitude": 87.8119
+        },
+        {
+            "name": "Fraserganj Beach",
+            "state": "West Bengal",
+            "coast": "East",
+            "latitude": 21.5719,
+            "longitude": 87.8119
+        },
+        {
+            "name": "Elliot's Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 13.0030,
+            "longitude": 80.2699
+        },
+        {
+            "name": "Golden Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 13.0499,
+            "longitude": 80.2824
+        },
+        {
+            "name": "Silver Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 13.0499,
+            "longitude": 80.2824
+        },
+        {
+            "name": "Mahabalipuram Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 12.6244,
+            "longitude": 80.1947
+        },
+        {
+            "name": "Rameswaram Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 9.2814,
+            "longitude": 79.3125
+        },
+        {
+            "name": "Dhanushkodi Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 9.1525,
+            "longitude": 79.5244
+        },
+        {
+            "name": "Kanyakumari Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 8.0883,
+            "longitude": 77.5376
+        },
+        {
+            "name": "Muttom Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 8.1219,
+            "longitude": 77.3125
+        },
+        {
+            "name": "Sangumukham Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.4822,
+            "longitude": 76.9406
+        },
+        {
+            "name": "Shankumugham Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.4822,
+            "longitude": 76.9406
+        },
+        {
+            "name": "Veli Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.4822,
+            "longitude": 76.9406
+        },
+        {
+            "name": "Thirumullavaram Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.8969,
+            "longitude": 76.5606
+        },
+        {
+            "name": "Alappuzha Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 9.4981,
+            "longitude": 76.3494
+        },
+        {
+            "name": "Cherai Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 10.1272,
+            "longitude": 76.1783
+        },
+        {
+            "name": "Bekal Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 12.3961,
+            "longitude": 75.0372
+        },
+        {
+            "name": "Payyambalam Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 11.8733,
+            "longitude": 75.3703
+        },
+        {
+            "name": "Muzhappilangad Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 11.7989,
+            "longitude": 75.4567
+        },
+        {
+            "name": "Dharmadam Island Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 11.7989,
+            "longitude": 75.4567
+        },
+        {
+            "name": "Kizhunna Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 12.0044,
+            "longitude": 75.2797
+        },
+        {
+            "name": "Ezhimala Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 12.0144,
+            "longitude": 75.1944
+        },
+        {
+            "name": "Kappil Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.5722,
+            "longitude": 76.5406
+        },
+        {
+            "name": "Adi Shankara Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 9.9983,
+            "longitude": 76.2394
+        },
+        {
+            "name": "Kovalam Beach",
+            "state": "Tamil Nadu",
+            "coast": "East",
+            "latitude": 12.9352,
+            "longitude": 80.1892,
+            "blue_flag": true
+        },
+        {
+            "name": "Kovalam Beach",
+            "state": "Kerala",
+            "coast": "West",
+            "latitude": 8.3963,
+            "longitude": 76.7183
+        },
+        {
+            "name": "Kovalam Beach",
+            "state": "Andhra Pradesh",
+            "coast": "East",
+            "latitude": 17.7263,
+            "longitude": 83.3030
+        },
+        {
+            "name": "Gokarna Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.5500,
+            "longitude": 74.3167
+        },
+        {
+            "name": "Om Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.5500,
+            "longitude": 74.3167
+        },
+        {
+            "name": "Kudle Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.5500,
+            "longitude": 74.3167
+        },
+        {
+            "name": "Half Moon Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.5500,
+            "longitude": 74.3167
+        },
+        {
+            "name": "Paradise Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.5500,
+            "longitude": 74.3167
+        },
+        {
+            "name": "Murudeshwara Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.1667,
+            "longitude": 74.3833
+        },
+        {
+            "name": "Maravanthe Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.7300,
+            "longitude": 74.6900
+        },
+        {
+            "name": "Kaup Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.3500,
+            "longitude": 74.7500
+        },
+        {
+            "name": "Someshwar Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 12.8167,
+            "longitude": 74.8333
+        },
+        {
+            "name": "Ullal Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 12.8167,
+            "longitude": 74.8333
+        },
+        {
+            "name": "Tannirubhavi Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 12.9200,
+            "longitude": 74.8300
+        },
+        {
+            "name": "Sasihithlu Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.1300,
+            "longitude": 74.7900
+        },
+        {
+            "name": "Mukka Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.1300,
+            "longitude": 74.7900
+        },
+        {
+            "name": "NITK Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 13.1300,
+            "longitude": 74.7900
+        },
+        {
+            "name": "Karwar Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.8000,
+            "longitude": 74.1300
+        },
+        {
+            "name": "Devbagh Beach",
+            "state": "Karnataka",
+            "coast": "West",
+            "latitude": 14.8000,
+            "longitude": 74.1300
+        },
+        {
+            "name": "Tarkarli Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 16.0333,
+            "longitude": 73.5500
+        },
+        {
+            "name": "Ganpatipule Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.1500,
+            "longitude": 73.2667
+        },
+        {
+            "name": "Diveagar Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.2333,
+            "longitude": 73.0167
+        },
+        {
+            "name": "Harihareshwar Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.2500,
+            "longitude": 73.0167
+        },
+        {
+            "name": "Kashid Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.4167,
+            "longitude": 72.9667
+        },
+        {
+            "name": "Murud Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.4833,
+            "longitude": 72.9500
+        },
+        {
+            "name": "Kihim Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.5000,
+            "longitude": 72.9500
+        },
+        {
+            "name": "Mandwa Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.5000,
+            "longitude": 72.9500
+        },
+        {
+            "name": "Revdanda Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.5500,
+            "longitude": 72.9667
+        },
+        {
+            "name": "Korlai Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.5500,
+            "longitude": 72.9667
+        },
+        {
+            "name": "Nandgaon Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.5500,
+            "longitude": 72.9667
+        },
+        {
+            "name": "Dahanu Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.9667,
+            "longitude": 72.7333
+        },
+        {
+            "name": "Bordi Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 20.0167,
+            "longitude": 72.7333
+        },
+        {
+            "name": "Chiplun Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.5333,
+            "longitude": 73.5167
+        },
+        {
+            "name": "Velneshwar Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.5333,
+            "longitude": 73.5167
+        },
+        {
+            "name": "Anjarle Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.9167,
+            "longitude": 73.0833
+        },
+        {
+            "name": "Kelshi Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.9167,
+            "longitude": 73.0833
+        },
+        {
+            "name": "Harnai Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Bankot Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Aravi Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Bhatye Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Arevare Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Adgaon Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Agardanda Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Anjarlay Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.9167,
+            "longitude": 73.0833
+        },
+        {
+            "name": "Arnala Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.8833,
+            "longitude": 72.7667
+        },
+        {
+            "name": "Manori Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Gorai Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Marve Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Versova Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1333,
+            "longitude": 72.8167
+        },
+        {
+            "name": "Aksa Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Madh Island Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Erangal Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Silver Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Golden Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Mira Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 19.1667,
+            "longitude": 72.8000
+        },
+        {
+            "name": "Bhogawe Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Dapoli Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Karde Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 17.8167,
+            "longitude": 73.1000
+        },
+        {
+            "name": "Murud Janjira Beach",
+            "state": "Maharashtra",
+            "coast": "West",
+            "latitude": 18.4833,
+            "longitude": 72.9500
+        },
+        {
+            "name": "Umbharat Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.1667,
+            "longitude": 72.8333
+        },
+        {
+            "name": "Dumas Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.1667,
+            "longitude": 72.8333
+        },
+        {
+            "name": "Suvali Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.1667,
+            "longitude": 72.8333
+        },
+        {
+            "name": "Dandi Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.1667,
+            "longitude": 72.8333
+        },
+        {
+            "name": "Tithal Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.1667,
+            "longitude": 72.8333
+        },
+        {
+            "name": "Mandvi Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.8333,
+            "longitude": 69.3500
+        },
+        {
+            "name": "Porbandar Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.6333,
+            "longitude": 69.6000
+        },
+        {
+            "name": "Chorwad Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.6333,
+            "longitude": 69.6000
+        },
+        {
+            "name": "Somnath Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 20.8833,
+            "longitude": 70.4000
+        },
+        {
+            "name": "Veraval Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 20.8833,
+            "longitude": 70.4000
+        },
+        {
+            "name": "Gopnath Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.0000,
+            "longitude": 71.0000
+        },
+        {
+            "name": "Bhavnagar Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 21.7667,
+            "longitude": 72.1500
+        },
+        {
+            "name": "Dwarka Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.2333,
+            "longitude": 68.9667
+        },
+        {
+            "name": "Beyt Dwarka Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.2333,
+            "longitude": 68.9667
+        },
+        {
+            "name": "Okha Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.2333,
+            "longitude": 68.9667
+        },
+        {
+            "name": "Mithapur Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.2333,
+            "longitude": 68.9667
+        },
+        {
+            "name": "Surajbari Bridge Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.2333,
+            "longitude": 68.9667
+        },
+        {
+            "name": "Jodiya Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.7167,
+            "longitude": 70.2833
+        },
+        {
+            "name": "Bhatiya Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.7167,
+            "longitude": 70.2833
+        },
+        {
+            "name": "Sikka Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.4333,
+            "longitude": 69.8333
+        },
+        {
+            "name": "Bedhi Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.4333,
+            "longitude": 69.8333
+        },
+        {
+            "name": "Narara Beach",
+            "state": "Gujarat",
+            "coast": "West",
+            "latitude": 22.4333,
+            "longitude": 69.8333
+        },
+        {
+            "name": "Moti Daman Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.4167,
+            "longitude": 72.8500
+        },
+        {
+            "name": "Nani Daman Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.4167,
+            "longitude": 72.8500
+        },
+        {
+            "name": "Diu Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 70.9833
+        },
+        {
+            "name": "Nagoa Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 70.9833
+        },
+        {
+            "name": "Jallandhar Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 70.9833
+        },
+        {
+            "name": "Chakratirth Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 70.9833
+        },
+        {
+            "name": "Gomatimata Beach",
+            "state": "Diu and Daman",
+            "coast": "West",
+            "latitude": 20.7167,
+            "longitude": 70.9833
+        },
+        {
+            "name": "Arambol Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Mandrem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6500,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Ashvem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6500,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Morjim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6500,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Vagator Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6000,
+            "longitude": 73.7333
+        },
+        {
+            "name": "Chapora Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6000,
+            "longitude": 73.7333
+        },
+        {
+            "name": "Ozran Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6000,
+            "longitude": 73.7333
+        },
+        {
+            "name": "Little Vagator Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.6000,
+            "longitude": 73.7333
+        },
+        {
+            "name": "Anjuna Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5628,
+            "longitude": 73.8078
+        },
+        {
+            "name": "Baga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5516,
+            "longitude": 73.7486
+        },
+        {
+            "name": "Calangute Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5401,
+            "longitude": 73.7605
+        },
+        {
+            "name": "Candolim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5200,
+            "longitude": 73.7667
+        },
+        {
+            "name": "Sinquerim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5000,
+            "longitude": 73.7667
+        },
+        {
+            "name": "Coco Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5000,
+            "longitude": 73.7667
+        },
+        {
+            "name": "Dona Paula Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8000
+        },
+        {
+            "name": "Miramar Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4833,
+            "longitude": 73.8167
+        },
+        {
+            "name": "Vainguinim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8000
+        },
+        {
+            "name": "Bambolim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Siridao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Bogmalo Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4167,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Hollant Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4167,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Majorda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3833,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Colva Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3475,
+            "longitude": 73.8040
+        },
+        {
+            "name": "Benaulim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Varca Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Cavelossim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Mobor Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Betul Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Palolem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Patnem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Rajbaga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Talpona Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Galjibaga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Agonda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Kakolem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Cola Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Khola Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Harmal Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Querim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Tiracol Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Kerim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Corgao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Shiroda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Velsao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Utorda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Arossim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Cansaulim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Vaddi Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Sinquerim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5000,
+            "longitude": 73.7667
+        },
+        {
+            "name": "Coco Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.5000,
+            "longitude": 73.7667
+        },
+        {
+            "name": "Dona Paula Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8000
+        },
+        {
+            "name": "Miramar Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4833,
+            "longitude": 73.8167
+        },
+        {
+            "name": "Vainguinim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8000
+        },
+        {
+            "name": "Bambolim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Siridao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4500,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Bogmalo Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4167,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Hollant Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.4167,
+            "longitude": 73.8500
+        },
+        {
+            "name": "Majorda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3833,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Benaulim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Varca Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Cavelossim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Mobor Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Betul Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Patnem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Rajbaga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Talpona Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Galjibaga Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Agonda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Kakolem Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Cola Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Khola Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.1958,
+            "longitude": 73.9454
+        },
+        {
+            "name": "Harmal Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Querim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Tiracol Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Kerim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Corgao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.7000,
+            "longitude": 73.7000
+        },
+        {
+            "name": "Shiroda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Velsao Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Utorda Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Arossim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Cansaulim Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Vaddi Beach",
+            "state": "Goa",
+            "coast": "West",
+            "latitude": 15.3500,
+            "longitude": 73.8667
+        },
+        {
+            "name": "Kalapathar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Vijaynagar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Lalaji Bay Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Butler Bay Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Ramnagar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Long Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Neil Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Bharatpur Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Laxmanpur Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Sitapur Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Karmatang Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Merry Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Cuthbert Bay Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Dhanikhari Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Corbyn's Cove Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "Wandoor Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "Chidiya Tapu Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "North Bay Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "Ross Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "Viper Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 11.6667,
+            "longitude": 92.7333
+        },
+        {
+            "name": "Havelock Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2371,
+            "longitude": 92.9847
+        },
+        {
+            "name": "Elephant Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2371,
+            "longitude": 92.9847
+        },
+        {
+            "name": "Neil Island Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 12.2000,
+            "longitude": 92.9500
+        },
+        {
+            "name": "Little Andaman Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 10.7500,
+            "longitude": 92.5000
+        },
+        {
+            "name": "Car Nicobar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 9.1667,
+            "longitude": 92.7667
+        },
+        {
+            "name": "Chowra Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 8.4667,
+            "longitude": 93.0333
+        },
+        {
+            "name": "Teressa Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 8.4167,
+            "longitude": 93.1167
+        },
+        {
+            "name": "Katchal Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 8.0000,
+            "longitude": 93.3333
+        },
+        {
+            "name": "Nancowry Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 8.0000,
+            "longitude": 93.3333
+        },
+        {
+            "name": "Great Nicobar Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 7.0000,
+            "longitude": 93.5000
+        },
+        {
+            "name": "Indira Point Beach",
+            "state": "Andaman and Nicobar",
+            "coast": "Island Territories",
+            "latitude": 6.7500,
+            "longitude": 93.8333
+        },
+        {
+            "name": "Agatti Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.8333,
+            "longitude": 72.2000
+        },
+        {
+            "name": "Bangaram Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.9333,
+            "longitude": 72.2833
+        },
+        {
+            "name": "Kavaratti Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.5667,
+            "longitude": 72.6333
+        },
+        {
+            "name": "Kalpeni Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.0833,
+            "longitude": 73.6333
+        },
+        {
+            "name": "Minicoy Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 8.2917,
+            "longitude": 73.0408
+        },
+        {
+            "name": "Amini Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 11.1167,
+            "longitude": 72.7333
+        },
+        {
+            "name": "Andrott Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.8167,
+            "longitude": 73.6833
+        },
+        {
+            "name": "Bitra Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 11.5500,
+            "longitude": 72.1667
+        },
+        {
+            "name": "Chetlat Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 11.7000,
+            "longitude": 72.7000
+        },
+        {
+            "name": "Kiltan Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 11.4833,
+            "longitude": 73.0000
+        },
+        {
+            "name": "Kadmat Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.9276,
+            "longitude": 72.7324,
+            "blue_flag": true
+        },
+        {
+            "name": "Minicoy Thundi Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 8.2917,
+            "longitude": 73.0408,
+            "blue_flag": true
+        },
+        {
+            "name": "Suheli Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.0667,
+            "longitude": 72.6167
+        },
+        {
+            "name": "Pitti Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 10.8333,
+            "longitude": 72.6167
+        },
+        {
+            "name": "Cheriyam Beach",
+            "state": "Lakshadweep",
+            "coast": "Island Territories",
+            "latitude": 11.1333,
+            "longitude": 72.7167
+        },
+        {
+            "name": "Promenade Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 11.9333,
+            "longitude": 79.8333
+        },
+        {
+            "name": "Paradise Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 11.9333,
+            "longitude": 79.8333
+        },
+        {
+            "name": "Serenity Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 11.9333,
+            "longitude": 79.8333
+        },
+        {
+            "name": "Auroville Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 11.9333,
+            "longitude": 79.8333
+        },
+        {
+            "name": "Karaikal Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 10.9167,
+            "longitude": 79.8333
+        },
+        {
+            "name": "Mahe Beach",
+            "state": "Puducherry",
+            "coast": "West",
+            "latitude": 11.7000,
+            "longitude": 75.5333
+        },
+        {
+            "name": "Yanam Beach",
+            "state": "Puducherry",
+            "coast": "East",
+            "latitude": 16.7333,
+            "longitude": 82.2167
+        }
+    ]
+}

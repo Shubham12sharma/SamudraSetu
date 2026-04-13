@@ -21,6 +21,41 @@ class BeachViewSet(viewsets.ModelViewSet):
     lookup_field = "_id"
     lookup_value_regex = "[0-9a-f]{24}"
 
+    @action(detail=True, methods=["get"])
+    def live_info(self, request, _id=None):
+        """
+        Returns live weather and Wikipedia info for a beach.
+        """
+        import requests
+        beach = self.get_object()
+        # Fetch live weather from Open-Meteo
+        weather_url = (
+            f"https://api.open-meteo.com/v1/forecast?latitude={beach.latitude}&longitude={beach.longitude}&current_weather=true"
+        )
+        weather_data = {}
+        try:
+            resp = requests.get(weather_url, timeout=5)
+            if resp.status_code == 200:
+                weather_data = resp.json().get("current_weather", {})
+        except Exception:
+            weather_data = {"error": "Could not fetch weather"}
+
+        # Fetch Wikipedia summary
+        wiki_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{beach.name.replace(' ', '_')}"
+        wiki_data = {}
+        try:
+            resp = requests.get(wiki_url, timeout=5)
+            if resp.status_code == 200:
+                wiki_data = resp.json()
+        except Exception:
+            wiki_data = {"error": "Could not fetch Wikipedia info"}
+
+        return Response({
+            "beach": BeachSerializer(beach).data,
+            "weather": weather_data,
+            "wikipedia": wiki_data,
+        })
+
     def get_queryset(self):
         queryset = Beach.objects.all()
         state = self.request.query_params.get("state")
