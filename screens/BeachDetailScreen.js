@@ -337,13 +337,14 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                 )}
                             </View>
 
+
                             <Text
                                 style={[
                                     styles.suitabilityScore,
                                     { color: getSuitabilityColor(suitability.overall) },
                                 ]}
                             >
-                                {suitability.overall.toFixed(0)}%
+                                {typeof suitability.overall === 'number' ? suitability.overall.toFixed(0) : '--'}%
                             </Text>
 
                             <View style={styles.suitabilityBreakdown}>
@@ -355,7 +356,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.swimming) },
                                         ]}
                                     >
-                                        {suitability.swimming.toFixed(0)}%
+                                        {typeof suitability.swimming === 'number' ? suitability.swimming.toFixed(0) : '--'}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
@@ -366,7 +367,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.family) },
                                         ]}
                                     >
-                                        {suitability.family.toFixed(0)}%
+                                        {typeof suitability.family === 'number' ? suitability.family.toFixed(0) : '--'}%
                                     </Text>
                                 </View>
                                 <View style={styles.suitabilityItem}>
@@ -377,7 +378,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
                                             { color: getSuitabilityColor(suitability.adventure) },
                                         ]}
                                     >
-                                        {suitability.adventure.toFixed(0)}%
+                                        {typeof suitability.adventure === 'number' ? suitability.adventure.toFixed(0) : '--'}%
                                     </Text>
                                 </View>
                             </View>

@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .suitability_model import predictor
 from beaches.models import Beach
+from bson import ObjectId
 from datetime import datetime
 
 
@@ -21,17 +22,33 @@ def predict_suitability(request):
         )
     
     try:
-        beach = Beach.objects.get(_id=beach_id)
-    except Beach.DoesNotExist:
+        # Try to convert to ObjectId if needed
+        if not isinstance(beach_id, ObjectId):
+            beach_id_obj = ObjectId(beach_id)
+        else:
+            beach_id_obj = beach_id
+        beach = Beach.objects.get(_id=beach_id_obj)
+    except Exception:
         return Response(
             {'error': 'Beach not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     
-    # Get current month
+    # Set defaults for all required features
     current_month = datetime.now().month
-    features['month'] = features.get('month', current_month)
-    
+    feature_defaults = {
+        'temperature': 28,
+        'humidity': 65,
+        'precipitation': 0,
+        'wind_speed': 12,
+        'tide_height': 1.5,
+        'water_temp': 26,
+        'air_quality_index': 50,
+        'month': current_month
+    }
+    for key, default in feature_defaults.items():
+        features[key] = features.get(key, default)
+
     # Predict scores
     scores = predictor.predict_suitability(features)
     
@@ -40,6 +57,9 @@ def predict_suitability(request):
     beach.swimming_score = scores['swimming']
     beach.family_score = scores['family']
     beach.adventure_score = scores['adventure']
+    # Ensure vibe_tags is always a list (never None)
+    if getattr(beach, 'vibe_tags', None) is None:
+        beach.vibe_tags = []
     beach.save()
     
     return Response({
@@ -56,7 +76,12 @@ def get_suitability(request, beach_id):
     Get current suitability scores for a beach
     """
     try:
-        beach = Beach.objects.get(_id=beach_id)
+        # Try to convert to ObjectId if needed
+        if not isinstance(beach_id, ObjectId):
+            beach_id_obj = ObjectId(beach_id)
+        else:
+            beach_id_obj = beach_id
+        beach = Beach.objects.get(_id=beach_id_obj)
         return Response({
             'beach_id': str(beach._id),
             'beach_name': beach.name,
@@ -67,7 +92,7 @@ def get_suitability(request, beach_id):
                 'adventure': beach.adventure_score
             }
         })
-    except Beach.DoesNotExist:
+    except Exception:
         return Response(
             {'error': 'Beach not found'},
             status=status.HTTP_404_NOT_FOUND

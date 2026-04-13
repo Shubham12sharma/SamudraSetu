@@ -168,9 +168,10 @@ import { beachesAPI, getUserData } from '../services/api';
                                         </View>
                                         <View style={styles.featuredCardContent}>
                                             <Text style={styles.featuredName}>{beach.name}</Text>
-                                            <Text style={styles.featuredLocation}>
-                                                <Ionicons name="location" size={12} color="#666" /> {beach.state}
-                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Ionicons name="location" size={12} color="#666" />
+                                                <Text style={styles.featuredLocation}> {beach.state}</Text>
+                                            </View>
                                         </View>
                                         <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}>\
                                             <Text style={[styles.suitabilityBadgeText, { color: getSuitabilityColor(beach.suitability_score || 0) }]}>\

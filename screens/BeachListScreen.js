@@ -51,12 +51,14 @@ import { beachesAPI } from '../services/api';
         const filteredBeaches = useMemo(() => {
             if (!searchQuery.trim()) return beaches;
 
-            const query = searchQuery.toLowerCase();
+            // Support multi-word search: all words must match somewhere in the object
+            const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
             return beaches.filter(beach => {
-                // Check all string fields in the beach object
-                return Object.values(beach).some(value =>
-                    typeof value === 'string' && value.toLowerCase().includes(query)
-                );
+                const values = Object.values(beach)
+                    .filter(v => typeof v === 'string')
+                    .map(v => v.toLowerCase());
+                // Every word must be found in at least one value
+                return words.every(word => values.some(val => val.includes(word)));
             });
         }, [beaches, searchQuery]);
 
