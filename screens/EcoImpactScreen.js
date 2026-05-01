@@ -19,6 +19,9 @@ import { beachesAPI, ecoImpactAPI } from '../services/api';
 
 export default function EcoImpactScreen({ navigation, route }) {
     const [beaches, setBeaches] = useState([]);
+    const [beachesLoading, setBeachesLoading] = useState(false);
+    const [modalSearch, setModalSearch] = useState('');
+    const [modalDebounced, setModalDebounced] = useState('');
     const [selectedBeach, setSelectedBeach] = useState(null);
     const [selectedBeaches, setSelectedBeaches] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -63,6 +66,12 @@ export default function EcoImpactScreen({ navigation, route }) {
         requestLocationPermission();
     }, []);
 
+    const DEBOUNCE_MS = 800;
+    useEffect(() => {
+        const t = setTimeout(() => setModalDebounced(modalSearch), DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [modalSearch]);
+
     const requestLocationPermission = async () => {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -94,14 +103,16 @@ export default function EcoImpactScreen({ navigation, route }) {
     const loadBeaches = async () => {
         try {
             setLoading(true);
-            const beachesData = await beachesAPI.getAll();
-            const beachesArray = Array.isArray(beachesData) ? beachesData : beachesData.results || [];
+            setBeachesLoading(true);
+            const beachesData = await beachesAPI.getAll({}, true);
+            const beachesArray = Array.isArray(beachesData) ? beachesData : [];
             setBeaches(beachesArray);
         } catch (error) {
             console.error('Error loading beaches:', error);
             Alert.alert('Error', 'Failed to load beaches');
         } finally {
             setLoading(false);
+            setBeachesLoading(false);
         }
     };
 
@@ -266,26 +277,54 @@ export default function EcoImpactScreen({ navigation, route }) {
                     </View>
 
                     <ScrollView style={styles.beachList}>
-                        {beaches.map((beach) => (
-                            <TouchableOpacity
-                                key={beach._id || beach.id}
-                                style={styles.beachItem}
-                                onPress={() => {
-                                    setSelectedBeach(beach);
-                                    setShowBeachSelector(false);
-                                    setImpactResult(null);
-                                    setComparisonResult(null);
-                                }}
-                            >
-                                <View style={styles.beachItemContent}>
-                                    <Text style={styles.beachItemName}>{beach.name}</Text>
-                                    <Text style={styles.beachItemLocation}>{beach.state}</Text>
-                                </View>
-                                {selectedBeach?._id === (beach._id || beach.id) && (
-                                    <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                                )}
-                            </TouchableOpacity>
-                        ))}
+                        <View style={styles.modalSearchWrap}>
+                            <Ionicons name="search" size={18} color="#94A3B8" />
+                            <TextInput
+                                style={styles.modalSearchInput}
+                                placeholder="Search beaches..."
+                                value={modalSearch}
+                                onChangeText={setModalSearch}
+                                autoCorrect={false}
+                            />
+                        </View>
+
+                        {beachesLoading ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="large" color="#0288D1" />
+                                <Text style={{ marginTop: 12, color: '#666' }}>Loading beaches...</Text>
+                            </View>
+                        ) : (beaches && beaches.length > 0) ? (
+                            beaches
+                                .filter(b => {
+                                    const q = (modalDebounced || '').trim().toLowerCase();
+                                    if (!q) return true;
+                                    return (b.name || '').toLowerCase().includes(q) || (b.state || '').toLowerCase().includes(q);
+                                })
+                                .map((beach) => (
+                                    <TouchableOpacity
+                                        key={beach._id || beach.id}
+                                        style={styles.beachItem}
+                                        onPress={() => {
+                                            setSelectedBeach(beach);
+                                            setShowBeachSelector(false);
+                                            setImpactResult(null);
+                                            setComparisonResult(null);
+                                        }}
+                                    >
+                                        <View style={styles.beachItemContent}>
+                                            <Text style={styles.beachItemName}>{beach.name}</Text>
+                                            <Text style={styles.beachItemLocation}>{beach.state}</Text>
+                                        </View>
+                                        {selectedBeach?._id === (beach._id || beach.id) && (
+                                            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))
+                        ) : (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <Text style={{ color: '#666' }}>No beaches available. Check your connection.</Text>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
             </View>
@@ -309,24 +348,52 @@ export default function EcoImpactScreen({ navigation, route }) {
                     </View>
 
                     <ScrollView style={styles.beachList}>
-                        {beaches.map((beach) => {
-                            const isSelected = selectedBeaches.some(b => (b._id || b.id) === (beach._id || beach.id));
-                            return (
-                                <TouchableOpacity
-                                    key={beach._id || beach.id}
-                                    style={[styles.beachItem, isSelected && styles.selectedBeachItem]}
-                                    onPress={() => toggleBeachSelection(beach)}
-                                >
-                                    <View style={styles.beachItemContent}>
-                                        <Text style={styles.beachItemName}>{beach.name}</Text>
-                                        <Text style={styles.beachItemLocation}>{beach.state}</Text>
-                                    </View>
-                                    {isSelected && (
-                                        <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
+                        <View style={styles.modalSearchWrap}>
+                            <Ionicons name="search" size={18} color="#94A3B8" />
+                            <TextInput
+                                style={styles.modalSearchInput}
+                                placeholder="Search beaches..."
+                                value={modalSearch}
+                                onChangeText={setModalSearch}
+                                autoCorrect={false}
+                            />
+                        </View>
+
+                        {beachesLoading ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="large" color="#0288D1" />
+                                <Text style={{ marginTop: 12, color: '#666' }}>Loading beaches...</Text>
+                            </View>
+                        ) : (beaches && beaches.length > 0) ? (
+                            beaches
+                                .filter(b => {
+                                    const q = (modalDebounced || '').trim().toLowerCase();
+                                    if (!q) return true;
+                                    return (b.name || '').toLowerCase().includes(q) || (b.state || '').toLowerCase().includes(q);
+                                })
+                                .map((beach) => {
+                                    const isSelected = selectedBeaches.some(b => (b._id || b.id) === (beach._id || beach.id));
+                                    return (
+                                        <TouchableOpacity
+                                            key={beach._id || beach.id}
+                                            style={[styles.beachItem, isSelected && styles.selectedBeachItem]}
+                                            onPress={() => toggleBeachSelection(beach)}
+                                        >
+                                            <View style={styles.beachItemContent}>
+                                                <Text style={styles.beachItemName}>{beach.name}</Text>
+                                                <Text style={styles.beachItemLocation}>{beach.state}</Text>
+                                            </View>
+                                            {isSelected && (
+                                                <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })
+                        ) : (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <Text style={{ color: '#666' }}>No beaches available. Check your connection.</Text>
+                            </View>
+                        )}
                     </ScrollView>
 
                     <View style={styles.modalFooter}>

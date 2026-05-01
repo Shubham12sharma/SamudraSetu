@@ -21,7 +21,6 @@ import {
     ecoAPI,
     getUserData,
     mlAPI,
-    sentimentAPI,
     weatherAPI,
 } from '../services/api';
 
@@ -154,13 +153,8 @@ export default function BeachDetailsScreen({ route, navigation }) {
                         console.error('Suitability error:', error);
                     }
 
-                    try {
-                        const vibeData = await sentimentAPI.getBeachVibe(beachId);
-                        const normalizedVibe = vibeData?.data || vibeData || {};
-                        setVibe(normalizedVibe);
-                    } catch (error) {
-                        console.error('Vibe error:', error);
-                    }
+                    // Sentiment/vibe feature removed — skipping
+                    setVibe(null);
 
                     try {
                         const reviewsData = await beachesAPI.getReviews(beachId);
@@ -209,23 +203,7 @@ export default function BeachDetailsScreen({ route, navigation }) {
     };
 
     const handleSubmitReview = async () => {
-        if (!reviewText.trim()) {
-            Alert.alert('Error', 'Please enter a review');
-            return;
-        }
-
-        try {
-            const userId = user?._id || user?.id || 'anonymous';
-            await sentimentAPI.analyzeReview(reviewText, beachId, userId, reviewRating);
-            Alert.alert('Success', 'Review submitted!');
-            setShowReviewModal(false);
-            setReviewText('');
-            setReviewRating(5);
-            loadAllData();
-        } catch (error) {
-            console.error('Review error:', error);
-            Alert.alert('Error', 'Failed to submit review');
-        }
+        Alert.alert('Unavailable', 'Review submission / sentiment analysis feature has been removed.');
     };
 
     const handlePredictSuitability = async () => {

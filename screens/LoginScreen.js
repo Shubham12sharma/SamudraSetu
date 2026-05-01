@@ -40,16 +40,21 @@ export default function LoginScreen({ navigation }) {
     try {
       const response = await authAPI.login(email, password);
       if (response.user) {
-        // Store user in context and AsyncStorage via auth service
         if (login) login(response.user);
         else console.warn('login function not available on AuthContext');
       }
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert(
-        'Login Failed',
-        error.response?.data?.error || error.message || 'Invalid email or password. Please check your credentials.'
-      );
+      // If backend returns 401 Unauthorized, show clear credential message
+      const status = error.response?.status;
+      if (status === 401) {
+        Alert.alert('Login Failed', 'Credentials wrong. Please check your email and password.');
+      } else {
+        Alert.alert(
+          'Login Failed',
+          error.response?.data?.error || error.message || 'Invalid email or password. Please check your credentials.'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -68,6 +73,13 @@ export default function LoginScreen({ navigation }) {
 
     if (!email.includes('@')) {
       Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    // Validate phone: if provided, must be exactly 10 digits
+    if (phone && !/^\d{10}$/.test(phone)) {
+      Alert.alert('Error', 'Mobile number must be exactly 10 digits');
+      setLoading(false);
       return;
     }
 

@@ -16,7 +16,6 @@ import LiveWeatherScreen from '../screens/LiveWeatherScreen';
 import LoginScreen from '../screens/LoginScreen';
 import MLPredictionScreen from '../screens/MLPredictionScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import SentimentAnalysisScreen from '../screens/SentimentAnalysisScreen';
 import UtilitiesScreen from '../screens/UtilitiesScreen';
 
 const Tab = createBottomTabNavigator();
@@ -250,15 +249,7 @@ export default function AppNavigator() {
                             cardStyle: { backgroundColor: 'transparent' },
                         }}
                     />
-                    <Stack.Screen
-                        name="SentimentAnalysis"
-                        component={SentimentAnalysisScreen}
-                        options={{
-                            animationEnabled: true,
-                            gestureEnabled: true,
-                            cardStyle: { backgroundColor: 'transparent' },
-                        }}
-                    />
+                    {/* SentimentAnalysis removed per user request */}
                     <Stack.Screen
                         name="LiveWeather"
                         component={LiveWeatherScreen}

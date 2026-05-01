@@ -2,15 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { beachesAPI, cvAPI } from '../services/api';
 
@@ -22,20 +23,33 @@ export default function CVVerificationScreen({ navigation, route }) {
   const [results, setResults] = useState(null);
   const [selectedBeach, setSelectedBeach] = useState(route?.params?.beach || null);
   const [beaches, setBeaches] = useState([]);
+  const [beachesLoading, setBeachesLoading] = useState(false);
   const [showBeachList, setShowBeachList] = useState(!selectedBeach);
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalDebounced, setModalDebounced] = useState('');
 
   useEffect(() => {
     loadBeaches();
   }, []);
 
+  // debounce modal search
+  const DEBOUNCE_MS = 800;
+  useEffect(() => {
+    const t = setTimeout(() => setModalDebounced(modalSearch), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [modalSearch]);
+
   const loadBeaches = async () => {
     try {
-      const data = await beachesAPI.getAll();
-      const beachesArray = Array.isArray(data) ? data : data.results || [];
+      setBeachesLoading(true);
+      const data = await beachesAPI.getAll({}, true);
+      const beachesArray = Array.isArray(data) ? data : [];
       setBeaches(beachesArray);
     } catch (error) {
       console.error('Error loading beaches:', error);
       Alert.alert('Error', 'Failed to load beaches');
+    } finally {
+      setBeachesLoading(false);
     }
   };
 
@@ -166,19 +180,46 @@ export default function CVVerificationScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.beachListScroll}>
-              {beaches.map((beach) => (
-                <TouchableOpacity
-                  key={beach._id || beach.id}
-                  style={styles.beachListItem}
-                  onPress={() => handleSelectBeach(beach)}
-                >
-                  <View style={styles.beachListItemContent}>
-                    <Text style={styles.beachListItemName}>{beach.name}</Text>
-                    <Text style={styles.beachListItemState}>{beach.state}</Text>
-                  </View>
-                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                </TouchableOpacity>
-              ))}
+              <View style={styles.modalSearchWrap}>
+                <Ionicons name="search" size={18} color="#94A3B8" />
+                <TextInput
+                  style={styles.modalSearchInput}
+                  placeholder="Search beaches..."
+                  value={modalSearch}
+                  onChangeText={setModalSearch}
+                  autoCorrect={false}
+                />
+              </View>
+              {beachesLoading ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#0288D1" />
+                  <Text style={{ marginTop: 12, color: '#666' }}>Loading beaches...</Text>
+                </View>
+              ) : (beaches && beaches.length > 0) ? (
+                beaches
+                  .filter(b => {
+                    const q = (modalDebounced || '').trim().toLowerCase();
+                    if (!q) return true;
+                    return (b.name || '').toLowerCase().includes(q) || (b.state || '').toLowerCase().includes(q);
+                  })
+                  .map((beach) => (
+                    <TouchableOpacity
+                      key={beach._id || beach.id}
+                      style={styles.beachListItem}
+                      onPress={() => handleSelectBeach(beach)}
+                    >
+                      <View style={styles.beachListItemContent}>
+                        <Text style={styles.beachListItemName}>{beach.name}</Text>
+                        <Text style={styles.beachListItemState}>{beach.state}</Text>
+                      </View>
+                      <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                    </TouchableOpacity>
+                  ))
+              ) : (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#666' }}>No beaches available. Check your connection.</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         )}
@@ -466,6 +507,21 @@ const styles = StyleSheet.create({
   beachListScroll: {
     backgroundColor: '#FFFFFF',
     maxHeight: 300,
+  },
+  modalSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 8,
+    margin: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modalSearchInput: {
+    flex: 1,
+    marginLeft: 8,
   },
   beachListItem: {
     flexDirection: 'row',

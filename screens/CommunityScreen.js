@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useContext, useEffect, useState, useCallback } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,7 +19,7 @@ import {
     View,
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { communityAPI } from '../services/api';
+import { API_ROOT, communityAPI } from '../services/api';
 
 const FLAIR_OPTIONS = [
     { key: 'general', label: 'General', color: '#607D8B', icon: '💬' },
@@ -245,6 +245,15 @@ export default function CommunityScreen({ navigation }) {
     };
 
     // --- RENDER: Post Card ---
+    // Normalize image URIs from server or local picker
+    const resolveImageUri = (uri) => {
+        if (!uri) return null;
+        // Leave absolute http(s), data URIs, and local file/content URIs unchanged
+        if (uri.startsWith('http') || uri.startsWith('data:') || uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('ph:')) return uri;
+        // Server may return paths like "/media/..." or "media/..." — prefix with API root
+        if (uri.startsWith('/')) return `${API_ROOT}${uri}`;
+        return `${API_ROOT}/${uri}`;
+    };
     const renderPostCard = ({ item }) => {
         const flair = getFlairInfo(item.flair);
         const userId = user ? (user._id || user.id) : null;
@@ -280,7 +289,7 @@ export default function CommunityScreen({ navigation }) {
                 {item.images && item.images.length > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
                         {item.images.map((uri, idx) => (
-                            <Image key={idx} source={{ uri }} style={styles.postImage} />
+                            <Image key={idx} source={{ uri: resolveImageUri(uri) }} style={styles.postImage} />
                         ))}
                     </ScrollView>
                 )}
@@ -480,7 +489,7 @@ export default function CommunityScreen({ navigation }) {
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagePreviewRow}>
                                     {selectedImages.map((uri, idx) => (
                                         <View key={idx} style={styles.imagePreviewContainer}>
-                                            <Image source={{ uri }} style={styles.imagePreview} />
+                                            <Image source={{ uri: resolveImageUri(uri) }} style={styles.imagePreview} />
                                             <TouchableOpacity
                                                 style={styles.imageRemoveBtn}
                                                 onPress={() => setSelectedImages(prev => prev.filter((_, i) => i !== idx))}
@@ -558,7 +567,7 @@ export default function CommunityScreen({ navigation }) {
                                     {postDetail.images && postDetail.images.length > 0 && (
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
                                             {postDetail.images.map((uri, idx) => (
-                                                <Image key={idx} source={{ uri }} style={styles.detailImage} />
+                                                <Image key={idx} source={{ uri: resolveImageUri(uri) }} style={styles.detailImage} />
                                             ))}
                                         </ScrollView>
                                     )}

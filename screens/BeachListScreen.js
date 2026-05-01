@@ -1,5 +1,5 @@
     import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,51 +16,82 @@ import { beachesAPI } from '../services/api';
 
     export default function BeachListScreen({ navigation }) {
         const [searchQuery, setSearchQuery] = useState('');
+        const [debouncedQuery, setDebouncedQuery] = useState('');
         const [beaches, setBeaches] = useState([]);
         const [loading, setLoading] = useState(true);
         const [refreshing, setRefreshing] = useState(false);
         const [filterState, setFilterState] = useState('');
+        const [page, setPage] = useState(1);
+        const [nextPageUrl, setNextPageUrl] = useState(null);
+        const [loadingMore, setLoadingMore] = useState(false);
 
         useEffect(() => {
-            loadBeaches();
-        }, []);
+            // load first page (reset) when component mounts or filters/search change
+            loadBeaches({ reset: true });
+        }, [debouncedQuery, filterState]);
 
-        const loadBeaches = async () => {
+        // Debounce search input (increase from 500ms to 1000ms)
+        useEffect(() => {
+            const t = setTimeout(() => setDebouncedQuery(searchQuery), 1000);
+            return () => clearTimeout(t);
+        }, [searchQuery]);
+
+        const loadBeaches = async ({ reset = false, loadMore = false } = {}) => {
             try {
-                setLoading(true);
+                if (reset) {
+                    setLoading(true);
+                    setPage(1);
+                    setNextPageUrl(null);
+                }
+                if (loadMore) setLoadingMore(true);
+
                 const params = {};
                 if (filterState) params.state = filterState;
+                if (debouncedQuery) params.search = debouncedQuery;
 
-                const data = await beachesAPI.getAll(params);
-                setBeaches(Array.isArray(data) ? data : data.results || []);
+                // Determine page to request
+                const requestPage = loadMore ? page + 1 : 1;
+                params.page = requestPage;
+
+                const data = await beachesAPI.getAll(params, false);
+
+                // Data expected to be paginated object: { results: [], next: url }
+                const results = Array.isArray(data) ? data : data.results || [];
+                const next = data.next || null;
+
+                if (reset) {
+                    setBeaches(results);
+                    setPage(1);
+                } else if (loadMore) {
+                    setBeaches(prev => [...prev, ...results]);
+                    setPage(requestPage);
+                } else {
+                    setBeaches(results);
+                    setPage(1);
+                }
+
+                setNextPageUrl(next);
             } catch (error) {
                 console.error('Error loading beaches:', error);
-                Alert.alert('Error', 'Failed to load beaches.');
-                setBeaches([]);
+                // If network error, show alert. For expected server/client errors, just fallback to empty list.
+                if (!error.response) {
+                    Alert.alert('Error', 'Network error loading beaches. Please check your connection.');
+                }
+                if (reset) setBeaches([]);
             } finally {
                 setLoading(false);
+                setLoadingMore(false);
             }
         };
 
         const onRefresh = async () => {
             setRefreshing(true);
-            await loadBeaches();
+            await loadBeaches({ reset: true });
             setRefreshing(false);
         };
 
-        const filteredBeaches = useMemo(() => {
-            if (!searchQuery.trim()) return beaches;
-
-            // Support multi-word search: all words must match somewhere in the object
-            const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-            return beaches.filter(beach => {
-                const values = Object.values(beach)
-                    .filter(v => typeof v === 'string')
-                    .map(v => v.toLowerCase());
-                // Every word must be found in at least one value
-                return words.every(word => values.some(val => val.includes(word)));
-            });
-        }, [beaches, searchQuery]);
+        // Since we query server-side with `search`, filteredBeaches is just beaches
+        const filteredBeaches = beaches;
 
         const getSuitabilityColor = (score) => {
             if (score >= 80) return '#10B981';
@@ -135,8 +166,9 @@ import { beachesAPI } from '../services/api';
             );
         };
 
-        const renderHeader = () => (
-            <View>
+        const headerRef = useRef(null);
+        const renderHeader = (
+            <View ref={headerRef}>
                 <View style={styles.header}>
                     <Text style={styles.title}>🏝️ Explore Beaches</Text>
                     <Text style={styles.subtitle}>
@@ -151,6 +183,8 @@ import { beachesAPI } from '../services/api';
                         placeholder="Search beaches..."
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        autoCorrect={false}
+                        blurOnSubmit={false}
                     />
                 </View>
             </View>
@@ -188,8 +222,21 @@ import { beachesAPI } from '../services/api';
                             colors={['#0891B2']}
                         />
                     }
+                    onEndReachedThreshold={0.5}
+                    onEndReached={() => {
+                        if (!loadingMore && nextPageUrl) {
+                            loadBeaches({ loadMore: true });
+                        }
+                    }}
+                    ListFooterComponent={() => (
+                        loadingMore ? (
+                            <View style={{ paddingVertical: 16 }}>
+                                <ActivityIndicator size="small" color="#0891B2" />
+                            </View>
+                        ) : null
+                    )}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                    keyboardShouldPersistTaps="always"
                 />
             </SafeAreaView>
         );

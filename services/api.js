@@ -21,6 +21,8 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+// Root server URL (without the `/api` suffix) useful for resolving media paths
+const API_ROOT = API_BASE_URL.replace(/\/api$/, '');
 console.log('Using API base URL:', API_BASE_URL);
 
 const api = axios.create({
@@ -250,12 +252,62 @@ export const weatherAPI = {
   },
 };
 
+// External weather helpers (client-side fallback)
+export const externalWeatherAPI = {
+  // Return an object with `current.temp` and `current.weather[0].description` to mimic OpenWeather OneCall
+  openWeatherOneCall: async (lat, lon) => {
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+      const resp = await axios.get(url, { timeout: 8000 });
+      const data = resp.data || {};
+      const current = data.current_weather || {};
+      return {
+        current: {
+          temp: current.temperature,
+          weather: [{ description: current?.weather || current?.condition || (current?.temperature ? 'Clear' : '') }],
+        },
+        source: 'open-meteo'
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+};
+
 // Beaches API
 export const beachesAPI = {
-  getAll: async (params = {}) => {
+  /**
+   * Get beaches. If `fetchAll` is true, will follow paginated results and return a flat array.
+   * Otherwise returns response.data (keeps backward compatibility with previous callers).
+   */
+  getAll: async (params = {}, fetchAll = false) => {
     try {
       const response = await api.get('/beaches/', { params });
-      return response.data;
+      const data = response.data;
+
+      if (!fetchAll) return data;
+
+      // If backend returns paginated response with `results` and `next`, aggregate all pages
+      if (Array.isArray(data)) return data; // already an array
+
+      const results = Array.isArray(data.results) ? [...data.results] : [];
+      let next = data.next;
+
+      // Follow `next` links until exhausted
+      while (next) {
+        // `next` may be an absolute URL
+        const resp = await axios.get(next, { timeout: 30000 });
+        const pageData = resp.data;
+        if (Array.isArray(pageData)) {
+          results.push(...pageData);
+          next = null;
+        } else {
+          if (Array.isArray(pageData.results)) results.push(...pageData.results);
+          next = pageData.next;
+        }
+      }
+
+      return results;
     } catch (error) {
       throw error;
     }
@@ -684,5 +736,6 @@ export const communityAPI = {
   },
 };
 
+export { API_BASE_URL, API_ROOT };
 export default api;
 

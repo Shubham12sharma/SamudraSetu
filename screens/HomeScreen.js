@@ -250,21 +250,7 @@ import { beachesAPI, getUserData } from '../services/api';
                                 </Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.featureCard}
-                                onPress={() => navigation.navigate('SentimentAnalysis')}
-                                activeOpacity={0.8}
-                            >
-                                <View style={styles.featureIcon}>
-                                    <Ionicons name="chatbubbles" size={32} color="#9C27B0" />
-                                </View>
-                                <Text style={styles.featureTitle}>Sentiment Analysis</Text>
-                                <Text style={styles.featureText}>
-                                    Real-time beach vibe detection from user reviews
-                                </Text>
-                            </TouchableOpacity>
-
-                            
+                            {/* Sentiment Analysis removed */}
                             <TouchableOpacity
                                 style={styles.featureCard}
                                 onPress={() => navigation.navigate('EcoImpact')}
@@ -507,12 +493,13 @@ import { beachesAPI, getUserData } from '../services/api';
         },
         featuredMeta: {
             flexDirection: 'row',
-            gap: 15,
+            // use margins instead of gap for React Native compatibility
+            alignItems: 'center',
         },
         metaItem: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 5,
+            marginRight: 12,
         },
         metaText: {
             fontSize: 12,
@@ -530,7 +517,7 @@ import { beachesAPI, getUserData } from '../services/api';
             flexDirection: 'row',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
-            gap: 15,
+            // replaced gap with card margins for consistent spacing on small screens
         },
         featureCard: {
             width: '48%',
@@ -544,6 +531,7 @@ import { beachesAPI, getUserData } from '../services/api';
             shadowOpacity: 0.1,
             shadowRadius: 2,
             marginBottom: 10,
+            marginRight: 6,
         },
         featureIcon: {
             width: 64,
@@ -570,7 +558,6 @@ import { beachesAPI, getUserData } from '../services/api';
         quickActions: {
             flexDirection: 'row',
             justifyContent: 'space-between',
-            gap: 12,
         },
         quickActionButton: {
             flex: 1,
@@ -583,6 +570,7 @@ import { beachesAPI, getUserData } from '../services/api';
             shadowOffset: { width: 0, height: 1 },
             shadowOpacity: 0.1,
             shadowRadius: 2,
+            marginHorizontal: 6,
         },
         quickActionText: {
             fontSize: 12,

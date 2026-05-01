@@ -18,7 +18,6 @@ import {
     beachesAPI,
     cvAPI,
     externalWeatherAPI,
-    sentimentAPI,
     weatherAPI,
 } from '../services/api';
 
@@ -92,9 +91,9 @@ export default function LiveWeatherScreen({ navigation }) {
     const fetchLocationAndBeaches = async () => {
         setLocationLoading(true);
         try {
-            // Fetch backend beaches
-            const backendBeaches = await beachesAPI.getAll();
-            setAllBeaches(backendBeaches);
+            // Fetch full backend beaches list
+            const backendBeaches = await beachesAPI.getAll({}, true);
+            setAllBeaches(Array.isArray(backendBeaches) ? backendBeaches : []);
 
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
@@ -203,23 +202,45 @@ export default function LiveWeatherScreen({ navigation }) {
         if (!lat || !lon) return;
 
         // Weather
-        try {
-            let w = await weatherAPI.getWeather(lat, lon).catch(() => null);
-            w = w?.data || w;
+            try {
+                let w = null;
+                try { w = await weatherAPI.getWeather(lat, lon); } catch (e) { w = null; }
 
-            if (!w?.temperature) {
-                const ow = await externalWeatherAPI.openWeatherOneCall(lat, lon).catch(() => null);
-                if (ow?.current) {
-                    w = { temperature: ow.current.temp, condition: ow.current.weather?.[0]?.description };
+                // Normalize different backend shapes:
+                // - { temperature, condition }
+                // - { temp, temperature }
+                // - { current: { temp, weather: [{ description }] } }
+                const normalizeWeather = (raw) => {
+                    if (!raw) return null;
+                    // Direct fields
+                    if (raw.temperature !== undefined || raw.condition !== undefined) {
+                        return { temperature: raw.temperature, condition: raw.condition };
+                    }
+                    if (raw.temp !== undefined) return { temperature: raw.temp, condition: raw.condition || null };
+                    // nested current
+                    if (raw.current) {
+                        const t = raw.current.temp ?? raw.current.temperature;
+                        const cond = raw.current.weather?.[0]?.description || raw.current.condition || null;
+                        return t !== undefined ? { temperature: t, condition: cond } : null;
+                    }
+                    return null;
+                };
+
+                let normalized = normalizeWeather(w);
+                if (!normalized) {
+                    const ow = await externalWeatherAPI.openWeatherOneCall(lat, lon).catch(() => null);
+                    normalized = normalizeWeather(ow) || (ow?.current ? { temperature: ow.current.temp, condition: ow.current.weather?.[0]?.description } : null);
                 }
-            }
-            setWeather(w);
-        } catch { }
 
-        // Vibe & Condition (use real backend ID)
+                setWeather(normalized);
+            } catch (err) {
+                console.error('Weather fetch error:', err);
+            }
+
+        // Condition (use real backend ID)
         const id = backendBeach._id || backendBeach.id;
         if (id) {
-            try { setVibe(await sentimentAPI.getBeachVibe(id).catch(() => null)); } catch { }
+            try { setVibe(null); } catch { }
             try { setCondition(await cvAPI.getConditionStatus(id).catch(() => null)); } catch { }
         }
     };

@@ -9,23 +9,14 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
-    Animated,
+    View
 } from 'react-native';
-import { beachesAPI, cvAPI, externalWeatherAPI, mlAPI, sentimentAPI, weatherAPI } from '../services/api';
+import { beachesAPI, cvAPI, externalWeatherAPI, mlAPI, weatherAPI } from '../services/api';
 
-// ═══════════════════════════════════════════════════════════
-// INDIA BEACHES DATABASE
-// ═══════════════════════════════════════════════════════════
-const INDIA_BEACHES = [
-    { id: 'juhu-beach', name: 'Juhu Beach', state: 'Maharashtra', city: 'Mumbai', latitude: 19.1136, longitude: 72.8261 },
-    { id: 'marine-drive', name: 'Marine Drive', state: 'Maharashtra', city: 'Mumbai', latitude: 18.9432, longitude: 72.8236 },
-    { id: 'baga-beach', name: 'Baga Beach', state: 'Goa', city: 'North Goa', latitude: 15.5431, longitude: 73.7573 },
-    { id: 'calangute-beach', name: 'Calangute Beach', state: 'Goa', city: 'North Goa', latitude: 15.5485, longitude: 73.7669 },
-    { id: 'palolem-beach', name: 'Palolem Beach', state: 'Goa', city: 'South Goa', latitude: 14.0275, longitude: 73.9725 },
-    { id: 'marina-beach', name: 'Marina Beach', state: 'Tamil Nadu', city: 'Chennai', latitude: 13.0499, longitude: 80.2823 },
-    { id: 'kovalam-beach', name: 'Kovalam Beach', state: 'Kerala', city: 'Trivandrum', latitude: 8.3842, longitude: 76.9754 },
-];
+// Backend-provided beaches list will be loaded at runtime
+// Fallback static list is intentionally omitted to prefer live backend data
+
+const FALLBACK_BEACHES = [];
 
 export default function AssistantScreen() {
     // ────────────────────────────────────────────────
@@ -43,6 +34,26 @@ export default function AssistantScreen() {
     const [isTyping, setIsTyping] = useState(false);
     const scrollViewRef = useRef(null);
     const [liveDataCache, setLiveDataCache] = useState({});
+    const [allBeaches, setAllBeaches] = useState([]);
+    const [loadingBeaches, setLoadingBeaches] = useState(false);
+
+    // Load full beaches list for assistant usage
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            setLoadingBeaches(true);
+            try {
+                const data = await beachesAPI.getAll({}, true);
+                const beaches = Array.isArray(data) ? data : [];
+                if (mounted) setAllBeaches(beaches);
+            } catch (err) {
+                console.error('Assistant: failed to load beaches', err);
+            } finally {
+                if (mounted) setLoadingBeaches(false);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
 
     // Quick action buttons
     const quickActions = [
@@ -60,19 +71,21 @@ export default function AssistantScreen() {
     const fetchLiveWeather = async () => {
         try {
             const lines = ['🌤️ LIVE BEACH WEATHER\n'];
-            const selectedBeaches = INDIA_BEACHES.slice(0, 5);
+            const selectedBeaches = (Array.isArray(allBeaches) && allBeaches.length > 0) ? allBeaches.slice(0, 5) : FALLBACK_BEACHES.slice(0,5);
 
             for (const beach of selectedBeaches) {
                 try {
                     let weatherData = null;
 
                     try {
-                        const res = await weatherAPI.getWeather(beach.latitude, beach.longitude).catch(() => null);
+                        const res = await weatherAPI.getWeather(beach.latitude || beach.lat || beach.latitude, beach.longitude || beach.lon || beach.longitude).catch(() => null);
                         weatherData = res?.data || res;
                     } catch (e) {
                         // Fallback to OpenWeather
                         try {
-                            const ow = await externalWeatherAPI.openWeatherOneCall(beach.latitude, beach.longitude).catch(() => null);
+                            const lat = beach.latitude || beach.lat || beach.latitude;
+                            const lon = beach.longitude || beach.lon || beach.longitude;
+                            const ow = await externalWeatherAPI.openWeatherOneCall(lat, lon).catch(() => null);
                             if (ow?.current) {
                                 weatherData = {
                                     temperature: ow.current.temp ?? ow.current.temperature,
@@ -131,11 +144,12 @@ export default function AssistantScreen() {
     const fetchSuitabilityScores = async () => {
         try {
             const lines = ['🎯 BEACH SUITABILITY SCORES\n'];
-            const selectedBeaches = INDIA_BEACHES.slice(0, 5);
+            const selectedBeaches = (Array.isArray(allBeaches) && allBeaches.length > 0) ? allBeaches.slice(0, 5) : FALLBACK_BEACHES.slice(0,5);
 
             for (const beach of selectedBeaches) {
                 try {
-                    const resp = await mlAPI.getSuitability(beach.id).catch(() => null);
+                    const beachId = beach._id || beach.id;
+                    const resp = beachId ? await mlAPI.getSuitability(beachId).catch(() => null) : null;
                     if (resp?.suitability_scores) {
                         const overall = resp.suitability_scores.overall ?? 0;
                         const swimming = resp.suitability_scores.swimming ?? 0;
@@ -170,14 +184,14 @@ export default function AssistantScreen() {
     const fetchWaterQuality = async () => {
         try {
             const lines = ['💧 WATER QUALITY STATUS\n'];
-            const selectedBeaches = INDIA_BEACHES.slice(0, 6);
+            const selectedBeaches = (Array.isArray(allBeaches) && allBeaches.length > 0) ? allBeaches.slice(0, 6) : FALLBACK_BEACHES.slice(0,6);
 
             for (const beach of selectedBeaches) {
                 try {
-                    const vibeResp = await sentimentAPI.getBeachVibe(beach.id).catch(() => null);
-                    const cvResp = await cvAPI.getConditionStatus(beach.id).catch(() => null);
+                    const beachId = beach._id || beach.id;
+                    const cvResp = beachId ? await cvAPI.getConditionStatus(beachId).catch(() => null) : null;
 
-                    const vibe = vibeResp?.vibe || vibeResp?.summary || 'N/A';
+                    const vibe = 'N/A';
                     const condition = cvResp?.status || cvResp?.condition || 'Good';
 
                     const qualityIcon = getQualityIcon(condition);
@@ -211,8 +225,8 @@ export default function AssistantScreen() {
 
             // Try to fetch data from backend API
             try {
-                const data = await beachesAPI.getAll();
-                const beaches = Array.isArray(data) ? data : data?.results || [];
+                const data = await beachesAPI.getAll({}, true);
+                const beaches = Array.isArray(data) ? data : [];
 
                 if (beaches.length > 0) {
                     const sorted = beaches
@@ -261,6 +275,51 @@ export default function AssistantScreen() {
     // ────────────────────────────────────────────────
     const generateResponse = async (userMessage) => {
         const lower = userMessage.toLowerCase();
+
+        // If user mentions a beach name, try to answer specifically for that beach
+        if (Array.isArray(allBeaches) && allBeaches.length > 0) {
+            const mentioned = allBeaches.find(b => {
+                try {
+                    const name = (b.name || '').toLowerCase();
+                    return name && lower.includes(name);
+                } catch { return false; }
+            });
+
+            if (mentioned) {
+                const beachId = mentioned._id || mentioned.id;
+                // If user asks for suitability for that beach
+                if (lower.includes('suitability') || lower.includes('suitable') || lower.includes('score') || lower.includes('rating')) {
+                    try {
+                        const resp = beachId ? await mlAPI.getSuitability(beachId).catch(() => null) : null;
+                        const scores = resp?.suitability_scores || resp?.suitability || null;
+                        if (scores) {
+                            return `🎯 Suitability for ${mentioned.name}\n• Overall: ${(scores.overall||0).toFixed(0)}%\n• Swimming: ${(scores.swimming||0).toFixed(0)}%\n• Family: ${(scores.family||0).toFixed(0)}%`;
+                        }
+                    } catch (err) {
+                        console.error('Assistant: suitability fetch error', err);
+                    }
+                }
+
+                // If user asks about weather for that beach
+                if (lower.includes('weather') || lower.includes('temperature') || lower.includes('forecast') || lower.includes('condition')) {
+                    try {
+                        const lat = mentioned.latitude || mentioned.lat || mentioned.latitude;
+                        const lon = mentioned.longitude || mentioned.lon || mentioned.longitude;
+                        if (lat && lon) {
+                            let w = null;
+                            try { w = await weatherAPI.getWeather(lat, lon); } catch { w = null; }
+                            if (!w || !('temperature' in w)) {
+                                const ow = await externalWeatherAPI.openWeatherOneCall(lat, lon).catch(() => null);
+                                if (ow?.current) w = { temperature: ow.current.temp, condition: ow.current.weather?.[0]?.description };
+                            }
+                            if (w) return `🌤️ Weather for ${mentioned.name}\nTemperature: ${w.temperature ?? '--'}°C\nCondition: ${w.condition || 'Unknown'}`;
+                        }
+                    } catch (err) {
+                        console.error('Assistant: weather fetch error for mentioned beach', err);
+                    }
+                }
+            }
+        }
 
         // Weather queries
         if (lower.includes('weather') || lower.includes('temperature') || lower.includes('forecast') || lower.includes('condition')) {
