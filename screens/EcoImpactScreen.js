@@ -566,28 +566,32 @@ export default function EcoImpactScreen({ navigation, route }) {
                         Distance: {comparisonResult.distance_km} km
                     </Text>
 
-                    {comparisonResult.transport_comparisons.map((mode, index) => (
-                        <View key={index} style={styles.comparisonCard}>
-                            <View style={styles.comparisonHeader}>
-                                <Text style={styles.comparisonEmoji}>{getTransportIcon(mode.mode)}</Text>
-                                <Text style={styles.comparisonMode}>
-                                    {mode.mode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                </Text>
-                                <Text style={[styles.comparisonEmissions, { color: getEmissionColor(mode.emissions_kg) }]}>
-                                    {mode.emissions_kg} kg CO₂e
-                                </Text>
-                            </View>
-                            <View style={styles.comparisonDetails}>
-                                <Text style={styles.comparisonText}>⏱️ {mode.time_hours} hours</Text>
-                                <Text style={styles.comparisonText}>💸 ₹{mode.cost_estimate}</Text>
-                            </View>
-                            {index === 0 && (
-                                <View style={styles.recommendedBadge}>
-                                    <Text style={styles.recommendedText}>Most Eco-Friendly</Text>
+                    {Array.isArray(comparisonResult.transport_comparisons) &&
+                        comparisonResult.transport_comparisons.map((mode, index) => (
+                            <View key={index} style={styles.comparisonCard}>
+                                <View style={styles.comparisonHeader}>
+                                    <Text style={styles.comparisonEmoji}>{getTransportIcon(mode.mode)}</Text>
+                                    <Text style={styles.comparisonMode}>
+                                        {mode.mode.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                    </Text>
+                                    <Text style={[styles.comparisonEmissions, { color: getEmissionColor(mode.emissions_kg) }]}> 
+                                        {mode.emissions_kg} kg CO₂e
+                                    </Text>
                                 </View>
-                            )}
-                        </View>
-                    ))}
+                                <View style={styles.comparisonDetails}>
+                                    <Text style={styles.comparisonText}>⏱️ {mode.time_hours} hours</Text>
+                                    <Text style={styles.comparisonText}>💸 ₹{mode.cost_estimate}</Text>
+                                </View>
+                                {index === 0 && (
+                                    <View style={styles.recommendedBadge}>
+                                        <Text style={styles.recommendedText}>Most Eco-Friendly</Text>
+                                    </View>
+                                )}
+                            </View>
+                        ))}
+                    {(!comparisonResult.transport_comparisons || !Array.isArray(comparisonResult.transport_comparisons)) && (
+                        <Text style={{textAlign:'center', color:'#999', marginTop:10}}>No transport comparison data available.</Text>
+                    )}
                 </View>
             )}
         </View>
@@ -846,7 +850,7 @@ export default function EcoImpactScreen({ navigation, route }) {
                         {suggestions.map((suggestion, index) => (
                             <View key={index} style={styles.suggestionItem}>
                                 <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                                <Text style={styles.suggestionText}>{suggestion}</Text>
+                                <Text style={styles.suggestionText}>{typeof suggestion === 'object' ? (suggestion.message || JSON.stringify(suggestion)) : suggestion}</Text>
                             </View>
                         ))}
                     </View>

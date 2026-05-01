@@ -159,7 +159,7 @@ import { beachesAPI, getUserData } from '../services/api';
                                                 <Text style={styles.featuredLocation}> {beach.state}</Text>
                                             </View>
                                         </View>
-                                        <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}>\
+                                        <View style={[styles.suitabilityBadge, { backgroundColor: getSuitabilityColor(beach.suitability_score || 0) + '20' }]}> 
                                             <Text style={[styles.suitabilityBadgeText, { color: getSuitabilityColor(beach.suitability_score || 0) }]}>\
                                                 {(beach.suitability_score || 0).toFixed(0)}%
                                             </Text>

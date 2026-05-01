@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+    beachesAPI,
     cvAPI,
     externalWeatherAPI,
     sentimentAPI,
@@ -24,19 +25,7 @@ import {
 // ────────────────────────────────────────────────
 // Static India Beaches (fallback / demo data)
 // ────────────────────────────────────────────────
-const INDIA_BEACHES = [
-    { id: 'juhu-beach', name: 'Juhu Beach', state: 'Maharashtra', city: 'Mumbai', latitude: 19.1136, longitude: 72.8261 },
-    { id: 'marine-drive', name: 'Marine Drive', state: 'Maharashtra', city: 'Mumbai', latitude: 18.9432, longitude: 72.8236 },
-    { id: 'aksa-beach', name: 'Aksa Beach', state: 'Maharashtra', city: 'Mumbai', latitude: 19.2089, longitude: 72.7939 },
-    { id: 'gorai-beach', name: 'Gorai Beach', state: 'Maharashtra', city: 'Mumbai', latitude: 19.2486, longitude: 72.7903 },
-    { id: 'baga-beach', name: 'Baga Beach', state: 'Goa', city: 'North Goa', latitude: 15.5431, longitude: 73.7573 },
-    { id: 'calangute-beach', name: 'Calangute Beach', state: 'Goa', city: 'North Goa', latitude: 15.5485, longitude: 73.7669 },
-    { id: 'palolem-beach', name: 'Palolem Beach', state: 'Goa', city: 'South Goa', latitude: 14.0275, longitude: 73.9725 },
-    { id: 'varkala-beach', name: 'Varkala Beach', state: 'Kerala', city: 'Varkala', latitude: 8.7339, longitude: 76.7273 },
-    { id: 'kovalam-beach', name: 'Kovalam Beach', state: 'Kerala', city: 'Trivandrum', latitude: 8.3842, longitude: 76.9754 },
-    { id: 'marina-beach', name: 'Marina Beach', state: 'Tamil Nadu', city: 'Chennai', latitude: 13.0499, longitude: 80.2823 },
-    // ... add more as needed
-];
+const INDIA_BEACHES = [];
 
 // ────────────────────────────────────────────────
 // Haversine Distance
@@ -52,11 +41,12 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
+
 export default function LiveWeatherScreen({ navigation }) {
     const [query, setQuery] = useState('');
-    const [allBeaches] = useState(INDIA_BEACHES);
+    const [allBeaches, setAllBeaches] = useState([]);
     const [nearbyBeaches, setNearbyBeaches] = useState([]);
-    const [filtered, setFiltered] = useState(INDIA_BEACHES.slice(0, 12));
+    const [filtered, setFiltered] = useState([]);
 
     const [userLocation, setUserLocation] = useState(null);
     const [locationLoading, setLocationLoading] = useState(false);
@@ -99,46 +89,64 @@ export default function LiveWeatherScreen({ navigation }) {
     // ────────────────────────────────────────────────
     // Get user location + nearby beaches
     // ────────────────────────────────────────────────
-    useEffect(() => {
-        (async () => {
-            setLocationLoading(true);
-            try {
-                const { status } = await Location.requestForegroundPermissionsAsync();
-                if (status !== 'granted') {
-                    setLocationError('Location permission denied');
-                    return;
-                }
+    const fetchLocationAndBeaches = async () => {
+        setLocationLoading(true);
+        try {
+            // Fetch backend beaches
+            const backendBeaches = await beachesAPI.getAll();
+            setAllBeaches(backendBeaches);
 
-                const loc = await Location.getCurrentPositionAsync({
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                setLocationError('Location permission denied. Please enable location permissions in your device settings.');
+                setFiltered(backendBeaches.slice(0, 12));
+                return;
+            }
+
+            let loc;
+            try {
+                loc = await Location.getCurrentPositionAsync({
                     accuracy: Location.Accuracy.Balanced,
                     timeout: 12000,
                 });
-
-                setUserLocation(loc.coords);
-
-                // Calculate nearby from static list
-                const nearby = INDIA_BEACHES
-                    .map(b => ({
-                        ...b,
-                        distance: getDistance(
-                            loc.coords.latitude,
-                            loc.coords.longitude,
-                            b.latitude,
-                            b.longitude
-                        ),
-                    }))
-                    .filter(b => b.distance <= 150)
-                    .sort((a, b) => a.distance - b.distance)
-                    .slice(0, 10);
-
-                setNearbyBeaches(nearby);
-                setFiltered(nearby.length > 0 ? nearby : INDIA_BEACHES.slice(0, 12));
             } catch (err) {
-                setLocationError('Could not get location');
-            } finally {
-                setLocationLoading(false);
+                setLocationError('Could not fetch your location. Please try again.');
+                setFiltered(backendBeaches.slice(0, 12));
+                console.error('Location error:', err);
+                return;
             }
-        })();
+
+            setUserLocation(loc.coords);
+
+            // Calculate nearby from backend list
+            const nearby = backendBeaches
+                .map(b => ({
+                    ...b,
+                    distance: getDistance(
+                        loc.coords.latitude,
+                        loc.coords.longitude,
+                        b.latitude,
+                        b.longitude
+                    ),
+                }))
+                .filter(b => b.distance <= 150)
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 10);
+
+            setNearbyBeaches(nearby);
+            setFiltered(nearby.length > 0 ? nearby : backendBeaches.slice(0, 12));
+            setLocationError(null);
+        } catch (err) {
+            setLocationError('Could not load beaches or location. Please check your connection and permissions.');
+            setFiltered([]);
+            console.error('Beaches/location fetch error:', err);
+        } finally {
+            setLocationLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLocationAndBeaches();
     }, []);
 
     // ────────────────────────────────────────────────
@@ -146,11 +154,14 @@ export default function LiveWeatherScreen({ navigation }) {
     // ────────────────────────────────────────────────
     useEffect(() => {
         if (!query.trim()) {
-            setFiltered(nearbyBeaches.length > 0 ? nearbyBeaches : INDIA_BEACHES.slice(0, 12));
+            // Safely handle allBeaches being undefined or not an array
+            const beachesArr = Array.isArray(allBeaches) ? allBeaches : [];
+            setFiltered(nearbyBeaches.length > 0 ? nearbyBeaches : beachesArr.slice(0, 12));
             return;
         }
 
-        const fuse = new Fuse(allBeaches, fuseOptions);
+        const beachesArr = Array.isArray(allBeaches) ? allBeaches : [];
+        const fuse = new Fuse(beachesArr, fuseOptions);
         const results = fuse.search(query.trim());
         setFiltered(results.map(r => r.item));
     }, [query, allBeaches, nearbyBeaches]);
@@ -172,13 +183,22 @@ export default function LiveWeatherScreen({ navigation }) {
     // Fetch live weather + vibe + condition
     // ────────────────────────────────────────────────
     const fetchDetails = async (beach) => {
-        setSelected(beach);
+        // Always use the backend beach object (with real ID)
+        let backendBeach = beach;
+        // If the beach object is missing backend fields, try to find it in allBeaches
+        if (!beach._id && allBeaches.length > 0) {
+            backendBeach = allBeaches.find(b =>
+                (b.id === beach.id) ||
+                (b.name === beach.name && b.city === beach.city && b.state === beach.state)
+            ) || beach;
+        }
+        setSelected(backendBeach);
         setWeather(null);
         setVibe(null);
         setCondition(null);
 
-        const lat = beach.latitude;
-        const lon = beach.longitude;
+        const lat = backendBeach.latitude;
+        const lon = backendBeach.longitude;
 
         if (!lat || !lon) return;
 
@@ -196,8 +216,8 @@ export default function LiveWeatherScreen({ navigation }) {
             setWeather(w);
         } catch { }
 
-        // Vibe & Condition (use your real backend IDs if available)
-        const id = beach.id;
+        // Vibe & Condition (use real backend ID)
+        const id = backendBeach._id || backendBeach.id;
         if (id) {
             try { setVibe(await sentimentAPI.getBeachVibe(id).catch(() => null)); } catch { }
             try { setCondition(await cvAPI.getConditionStatus(id).catch(() => null)); } catch { }
@@ -263,7 +283,15 @@ export default function LiveWeatherScreen({ navigation }) {
             )}
 
             {locationError && !locationLoading && (
-                <Text style={styles.errorText}>{locationError}</Text>
+                <View style={{ alignItems: 'center', marginTop: 16 }}>
+                    <Text style={styles.errorText}>{locationError}</Text>
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#0288D1', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8, marginTop: 10 }}
+                        onPress={fetchLocationAndBeaches}
+                    >
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>Retry Location</Text>
+                    </TouchableOpacity>
+                </View>
             )}
 
             {/* Beach List */}
@@ -271,11 +299,13 @@ export default function LiveWeatherScreen({ navigation }) {
                 <FlatList
                     data={filtered}
                     renderItem={renderBeach}
-                    keyExtractor={item => item.id}
+                    keyExtractor={item => item._id?.toString() || item.id?.toString() || Math.random().toString()}
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <Text style={styles.emptyText}>
-                            {query ? `No beach found for "${query}"` : 'No nearby beaches found'}
+                            {Array.isArray(allBeaches) && allBeaches.length === 0
+                                ? 'No beaches available. Please check your connection or try again later.'
+                                : (query ? `No beach found for "${query}"` : 'No nearby beaches found')}
                         </Text>
                     }
                 />
@@ -338,7 +368,10 @@ export default function LiveWeatherScreen({ navigation }) {
                         {/* Actions */}
                         <TouchableOpacity
                             style={styles.fullDetailsBtn}
-                            onPress={() => navigateToBeaches({ screen: 'BeachDetails', params: { beach: selected } })}
+                            onPress={() => {
+                                // Always pass the backend beach object (with real _id)
+                                navigateToBeaches({ screen: 'BeachDetails', params: { beach: selected } });
+                            }}
                         >
                             <Text style={styles.fullDetailsText}>View Full Details →</Text>
                         </TouchableOpacity>

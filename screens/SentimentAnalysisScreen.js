@@ -3,19 +3,19 @@ import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
-    Modal,
-    KeyboardAvoidingView,
-    Platform,
-    RefreshControl
+    View
 } from 'react-native';
-import { beachesAPI, sentimentAPI } from '../services/api';
 import { Rating } from 'react-native-ratings';
+import { beachesAPI, sentimentAPI } from '../services/api';
 
 export default function SentimentAnalysisScreen({ navigation, route }) {
     const [beaches, setBeaches] = useState([]);
@@ -94,6 +94,7 @@ export default function SentimentAnalysisScreen({ navigation, route }) {
             };
 
             const result = await sentimentAPI.analyzeReview(data);
+            console.log('Sentiment analysis result:', result); // Debug log
             setAnalysisResult(result.analysis);
 
             // If beach was updated, refresh beach vibe

@@ -515,7 +515,7 @@ export const ecoImpactAPI = {
   // Calculate environmental impact for a single beach visit
   calculateImpact: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/calculate-impact/`, {
+      const response = await fetch(`${API_BASE_URL}/eco/calculate/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -524,12 +524,24 @@ export const ecoImpactAPI = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to calculate impact');
+        let errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to calculate impact');
+        } catch (jsonErr) {
+          console.error('Eco Impact API Raw Error Response:', errorText);
+          throw new Error('Failed to calculate impact: ' + errorText);
+        }
       }
 
-      const result = await response.json();
-      return result;
+      try {
+        const result = await response.json();
+        return result;
+      } catch (jsonErr) {
+        const rawText = await response.text();
+        console.error('Eco Impact API Non-JSON Response:', rawText);
+        throw new Error('Eco Impact API did not return JSON: ' + rawText);
+      }
     } catch (error) {
       console.error('Eco Impact API Error:', error);
       throw error;
@@ -539,7 +551,7 @@ export const ecoImpactAPI = {
   // Compare different transport modes
   compareTransportModes: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/compare-transport/`, {
+      const response = await fetch(`${API_BASE_URL}/eco/compare-transport/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -548,12 +560,24 @@ export const ecoImpactAPI = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to compare transport modes');
+        let errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to compare transport modes');
+        } catch (jsonErr) {
+          console.error('Compare Transport API Raw Error Response:', errorText);
+          throw new Error('Failed to compare transport modes: ' + errorText);
+        }
       }
 
-      const result = await response.json();
-      return result;
+      try {
+        const result = await response.json();
+        return result;
+      } catch (jsonErr) {
+        const rawText = await response.text();
+        console.error('Compare Transport API Non-JSON Response:', rawText);
+        throw new Error('Compare Transport API did not return JSON: ' + rawText);
+      }
     } catch (error) {
       console.error('Compare Transport API Error:', error);
       throw error;
@@ -563,7 +587,7 @@ export const ecoImpactAPI = {
   // Calculate impact for a multi-beach itinerary
   calculateItineraryImpact: async (data) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/calculate-itinerary-impact/`, {
+      const response = await fetch(`${API_BASE_URL}/eco/itinerary-impact/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -572,12 +596,24 @@ export const ecoImpactAPI = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to calculate itinerary impact');
+        let errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to calculate itinerary impact');
+        } catch (jsonErr) {
+          console.error('Itinerary Impact API Raw Error Response:', errorText);
+          throw new Error('Failed to calculate itinerary impact: ' + errorText);
+        }
       }
 
-      const result = await response.json();
-      return result;
+      try {
+        const result = await response.json();
+        return result;
+      } catch (jsonErr) {
+        const rawText = await response.text();
+        console.error('Itinerary Impact API Non-JSON Response:', rawText);
+        throw new Error('Itinerary Impact API did not return JSON: ' + rawText);
+      }
     } catch (error) {
       console.error('Itinerary Impact API Error:', error);
       throw error;
